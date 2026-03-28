@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="lt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Informacinis puslapis apie Meat Busters – mėsos patiekalų, BBQ ir burgerių mėgėjams."
+    />
+    <title>Meat Busters | Skonio fanų puslapis</title>
+    <style>
+      :root {
+        --bg: #111111;
+        --panel: #1d1d1d;
+        --accent: #ff5a1f;
+        --text: #f5f5f5;
+        --muted: #c2c2c2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: radial-gradient(circle at top, #222 0%, var(--bg) 55%);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      .container {
+        width: min(1000px, 92%);
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 3rem 0 2rem;
+        border-bottom: 1px solid #303030;
+      }
+
+      .badge {
+        display: inline-block;
+        background: #2b2b2b;
+        color: var(--muted);
+        padding: 0.4rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+
+      h1 {
+        margin: 1rem 0 0.6rem;
+        font-size: clamp(2rem, 5vw, 3.2rem);
+        line-height: 1.15;
+      }
+
+      .lead {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+
+      .cta-group {
+        margin-top: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+      }
+
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        padding: 0.75rem 1.1rem;
+        border-radius: 10px;
+        font-weight: 700;
+        border: 1px solid transparent;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+      }
+
+      .btn-secondary {
+        border-color: #4a4a4a;
+        color: var(--text);
+      }
+
+      main {
+        padding: 2rem 0 3rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid #2f2f2f;
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .card h2 {
+        margin-top: 0.1rem;
+        font-size: 1.2rem;
+      }
+
+      .card p,
+      li {
+        color: var(--muted);
+      }
+
+      footer {
+        border-top: 1px solid #303030;
+        padding: 1.5rem 0 3rem;
+        color: #a5a5a5;
+        font-size: 0.95rem;
+      }
+
+      .note {
+        margin-top: 1.5rem;
+        background: #2a1b15;
+        border: 1px solid #523022;
+        padding: 0.9rem;
+        border-radius: 10px;
+        color: #ffc6b3;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <span class="badge">Mėsos skonių gerbėjams</span>
+        <h1>Meat Busters – drąsūs BBQ ir burgerių skoniai</h1>
+        <p class="lead">
+          Šis puslapis sukurtas kaip informacinis pristatymas apie
+          <strong>www.meatbusters.lt</strong> – vietą, kur mėsos entuziastai ieško
+          išraiškingų patiekalų, sodrių padažų ir jaukaus "street food" stiliaus.
+        </p>
+
+        <div class="cta-group">
+          <a class="btn btn-primary" href="https://www.meatbusters.lt" target="_blank" rel="noopener noreferrer">
+            Aplankyti oficialų puslapį
+          </a>
+          <a class="btn btn-secondary" href="#apie">Sužinoti daugiau</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" id="apie">
+      <section class="grid">
+        <article class="card">
+          <h2>Kuo išsiskiria?</h2>
+          <p>
+            Meat Busters vardas asocijuojasi su sodriais mėsos skoniais, moderniu
+            pateikimu ir neformalia atmosfera.
+          </p>
+        </article>
+
+        <article class="card">
+          <h2>Populiarūs pasirinkimai</h2>
+          <ul>
+            <li>BBQ stiliaus burgeriai</li>
+            <li>Lėtai ruošta mėsa</li>
+            <li>Aštrūs ir klasikiniai padažai</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>Kam tinka?</h2>
+          <p>
+            Tiems, kurie vertina sotų maistą, ryškų skonį ir nori greitai rasti
+            informaciją ar užsisakyti patiekalus internetu.
+          </p>
+        </article>
+      </section>
+
+      <p class="note">
+        Pastaba: tai demonstracinis HTML puslapis. Tiksliausia ir naujausia
+        informacija pateikiama oficialiame Meat Busters tinklalapyje.
+      </p>
+    </main>
+
+    <footer>
+      <div class="container">
+        Sukurta kaip paprastas vieno puslapio HTML projektas apie
+        <a href="https://www.meatbusters.lt" target="_blank" rel="noopener noreferrer" style="color: #ff8f68">www.meatbusters.lt</a>.
+      </div>
+    </footer>
+  </body>
+</html>
