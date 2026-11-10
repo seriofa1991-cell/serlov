@@ -167,6 +167,8 @@ textarea{width:100%;margin-top:8px;font-size:12px}
 select{background:#17110f;color:#f0e6d0;border:2px solid var(--line2);border-radius:6px;padding:8px;font:inherit;width:100%;min-width:0}
 .inrow input[type=number]{min-width:0;flex:1}
 
+.duel{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}.dside{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}.dsp{height:72px;image-rendering:pixelated}.dsp.flip{transform:scaleX(-1)}.dvs{font:700 16px Cinzel,serif;min-width:64px;text-align:center}.dside .bar{width:100%}
+
 </style>
 </head>
 <body>
@@ -367,6 +369,7 @@ D('rar_1', 'Rare', 'Retas', 'Редкий'); D('rar_2', 'Epic', 'Epinis', 'Эп�
 D('tt_title', 'Titles', 'Titulai', 'Титулы'); D('tt_hint', 'Earn titles and show one next to your name.', 'Pelnyk titulus ir rodyk vieną prie savo vardo.', 'Зарабатывай титулы и показывай один рядом с именем.'); D('tt_use', 'Use', 'Naudoti', 'Выбрать'); D('tt_used', 'Active', 'Aktyvus', 'Активен'); D('tt_off', 'Remove title', 'Nuimti titulą', 'Снять титул');
 D('tt_new', 'New title: {0}', 'Naujas titulas: {0}', 'Новый титул: {0}');
 D('guide', 'Guide', 'Vedlys', 'Обучение'); D('guide_step', 'Guide step {0}/{1} done', 'Vedlio žingsnis {0}/{1} atliktas', 'Шаг обучения {0}/{1} выполнен'); D('guide_done', 'Guide complete! +200 coins', 'Vedlys baigtas! +200 monetų', 'Обучение пройдено! +200 монет');
+D('ar_limit', 'No duels left today.', 'Šiandien dvikovų nebeliko.', 'На сегодня дуэли закончились.'); D('ar_lost_to', '{0} defeated your hero in the arena.', '{0} nugalėjo tavo herojų arenoje.', '{0} победил твоего героя на арене.'); D('ar_won_vs', '{0} challenged your hero in the arena and lost.', '{0} iššaukė tavo herojų arenoje ir pralaimėjo.', '{0} бросил вызов твоему герою на арене и проиграл.');
 
 'use strict';
 /* ===== DATA: items, recipes, monsters, nodes, zones, quests ===== */
@@ -591,8 +594,14 @@ MONS.bandit_king = { n: 'Bandit King Grukk|Banditų karalius Gručas|Корол�
 MONS.bog_hag = { n: 'Bog Hag Morwen|Pelkių ragana Morvena|Болотная ведьма Морвен', lv: 28, hp: 760, mh: 24, def: 24, t: 2.4, xp: 650, coin: [120, 260], zone: 'mire', spr: 'bog_hag', boss: true, drops: [['essence', 1, 2, 4], ['relic', 0.35, 1, 1], ['moonpetal', 0.8, 3, 6], ['sword_iron', 0.15, 1, 1]] };
 MONS.ash_tyrant = { n: 'Ash Tyrant Vorgath|Pelenų tironas Vorgatas|Пепельный тиран Воргат', lv: 45, hp: 1600, mh: 40, def: 40, t: 2.6, xp: 1400, coin: [250, 520], zone: 'ashfall', spr: 'ash_tyrant', boss: true, drops: [['mithore', 1, 2, 5], ['coal', 1, 5, 10], ['sword_steel', 0.15, 1, 1], ['relic', 0.4, 1, 2]] };
 MONS.hollow_king = { n: 'The Hollow King|Tuščiavidurių karalius|Полый король', lv: 66, hp: 3400, mh: 62, def: 62, t: 2.8, xp: 3000, coin: [500, 1000], zone: 'frost', spr: 'hollow_king', boss: true, drops: [['core', 1, 1, 2], ['relic', 0.8, 1, 3], ['mithore', 1, 4, 8]] };
-const BOSS_ORDER = ['bandit_king', 'bog_hag', 'ash_tyrant', 'hollow_king'];
-const MON_ORDER = ['chicken', 'boar', 'goblin', 'wisp', 'spider', 'skeleton', 'wolf', 'orc', 'wraith', 'golem'];
+MONS.ghoul = { n: 'Drowned Ghoul|Skenduolis vaiduoklis|Утопший упырь', lv: 58, hp: 430, mh: 44, def: 52, t: 2.2, xp: 700, coin: [40, 95], zone: 'ruins', spr: 'ghoul', drops: [['bones', 1, 1, 3], ['relic', 0.3, 1, 1], ['essence', 0.4, 1, 2]] };
+MONS.serpent = { n: 'Ruin Serpent|Griuvėsių žaltys|Змей руин', lv: 68, hp: 560, mh: 54, def: 62, t: 2.0, xp: 980, coin: [55, 130], zone: 'ruins', spr: 'serpent', drops: [['fang', 0.6, 1, 2], ['moonpetal', 0.5, 1, 3], ['core', 0.12, 1, 1]] };
+MONS.drake = { n: 'Cinder Drake|Žarijų drakonėlis|Пепельный дрейк', lv: 76, hp: 680, mh: 62, def: 70, t: 1.8, xp: 1250, coin: [70, 160], zone: 'spine', spr: 'drake', drops: [['fang', 0.6, 1, 2], ['coal', 0.8, 3, 6], ['mithore', 0.4, 1, 3]] };
+MONS.magma = { n: 'Magma Colossus|Magmos milžinas|Магмовый колосс', lv: 86, hp: 900, mh: 74, def: 82, t: 2.8, xp: 1700, coin: [90, 210], zone: 'spine', spr: 'magma', drops: [['core', 0.35, 1, 2], ['mithore', 0.7, 2, 4], ['relic', 0.3, 1, 1]] };
+MONS.drowned_lord = { n: 'The Drowned Lord|Skenduolių valdovas|Владыка утопших', lv: 78, hp: 4600, mh: 74, def: 74, t: 2.8, xp: 4200, coin: [700, 1400], zone: 'ruins', spr: 'drowned_lord', boss: true, drops: [['core', 1, 1, 3], ['relic', 1, 2, 4], ['essence', 1, 3, 6]] };
+MONS.ember_wyrm = { n: 'Ember Wyrm Kaldrath|Žarijų slibinas Kaldratas|Пламенный змей Калдрат', lv: 95, hp: 6500, mh: 92, def: 90, t: 2.6, xp: 6500, coin: [1200, 2400], zone: 'spine', spr: 'ember_wyrm', boss: true, drops: [['core', 1, 2, 5], ['relic', 1, 3, 6], ['mithore', 1, 6, 12]] };
+const BOSS_ORDER = ['bandit_king', 'bog_hag', 'ash_tyrant', 'hollow_king', 'drowned_lord', 'ember_wyrm'];
+const MON_ORDER = ['chicken', 'boar', 'goblin', 'wisp', 'spider', 'skeleton', 'wolf', 'orc', 'wraith', 'golem', 'ghoul', 'serpent', 'drake', 'magma'];
 /* ---- world map: locations + roads ---- */
 const LOCS = {
   town: { n: 'Emberhollow|Žarijų slėnis|Янтарная лощина', x: 0.50, y: 0.50, sc: 'town', hub: 1 },
@@ -602,10 +611,12 @@ const LOCS = {
   lake: { n: 'Silvermere|Sidabro ežeras|Серебряное озеро', x: 0.84, y: 0.46, sc: 'lake', nodes: ['n_shrimp', 'n_trout', 'n_salmon', 'n_sword'] },
   mire: { n: 'Mirewood Bog|Pelkių miškas|Болотный лес', x: 0.20, y: 0.32, sc: 'mire', mons: ['wisp', 'spider'], boss: 'bog_hag', nodes: ['n_marigold', 'n_moon'] },
   ashfall: { n: 'Ashfall Ridge|Pelenų kalvagūbris|Пепельный хребет', x: 0.80, y: 0.16, sc: 'ash', mons: ['skeleton', 'wolf', 'orc'], boss: 'ash_tyrant' },
-  frost: { n: 'Frostmere Crypt|Šalčio ežero kriptas|Склеп Морозного озера', x: 0.48, y: 0.89, sc: 'frost', mons: ['wraith', 'golem'], boss: 'hollow_king' }
+  frost: { n: 'Frostmere Crypt|Šalčio ežero kriptas|Склеп Морозного озера', x: 0.48, y: 0.89, sc: 'frost', mons: ['wraith', 'golem'], boss: 'hollow_king' },
+  ruins: { n: 'Sunken Ruins|Paskendę griuvėsiai|Затонувшие руины', x: 0.17, y: 0.50, sc: 'mire', mons: ['ghoul', 'serpent'], boss: 'drowned_lord' },
+  spine: { n: "Dragon's Spine|Drakono ketera|Хребет дракона", x: 0.84, y: 0.90, sc: 'ash', mons: ['drake', 'magma'], boss: 'ember_wyrm' }
 };
 const LOC_IDS = Object.keys(LOCS);
-const EDGES = [['town', 'meadow'], ['town', 'oak'], ['town', 'quarry'], ['town', 'lake'], ['oak', 'mire'], ['quarry', 'ashfall'], ['meadow', 'frost'], ['lake', 'meadow']];
+const EDGES = [['town', 'meadow'], ['town', 'oak'], ['town', 'quarry'], ['town', 'lake'], ['oak', 'mire'], ['quarry', 'ashfall'], ['meadow', 'frost'], ['lake', 'meadow'], ['mire', 'ruins'], ['frost', 'spine']];
 const NEIGH = {}; LOC_IDS.forEach(k => NEIGH[k] = []); EDGES.forEach(e => { NEIGH[e[0]].push(e[1]); NEIGH[e[1]].push(e[0]); });
 const MON_LOC = {}; LOC_IDS.forEach(k => { const L = LOCS[k]; (L.mons || []).forEach(m => MON_LOC[m] = k); if (L.boss) MON_LOC[L.boss] = k; });
 const NODE_LOC = {}; LOC_IDS.forEach(k => (LOCS[k].nodes || []).forEach(n => NODE_LOC[n] = k));
@@ -1132,7 +1143,13 @@ SPR_DEF.bandit_king = { p: Object.assign({}, SPR_DEF.orc.p, { g: '#b08050', d: '
 SPR_DEF.bog_hag = { p: Object.assign({}, SPR_DEF.skeleton.p, { w: '#8ab06a', g: '#5a7a42', r: '#3a1a4a', k: '#111', s: '#6a4a2a', h: '#2a1a3a' }), g: ['.....hh......', '....hhhh.....', '..hhhhhhhh...'].concat(SPR_DEF.skeleton.g) };
 SPR_DEF.ash_tyrant = { p: Object.assign({}, SPR_DEF.golem.p, { g: '#8a3a2a', d: '#3a120c', l: '#d0603a', o: '#ffd040' }), g: SPR_DEF.golem.g };
 SPR_DEF.hollow_king = { p: Object.assign({}, SPR_DEF.wraith.p, { a: '#d8c0ff', b: '#8a5ad8', c: '#4a2a8a', k: '#1a0a2a', y: '#ffd35a' }), g: ['..y.y.y.y...', '..yyyyyyy...'].concat(SPR_DEF.wraith.g) };
-['bandit_king', 'bog_hag', 'ash_tyrant', 'hollow_king'].forEach(k => SPR[k] = mkSprite(SPR_DEF[k].g, SPR_DEF[k].p));
+SPR_DEF.ghoul = { p: Object.assign({}, SPR_DEF.skeleton.p, { w: '#9ad8b8', g: '#4a8a78', r: '#2a5a6a', s: '#6a8a9a' }), g: SPR_DEF.skeleton.g };
+SPR_DEF.serpent = { p: Object.assign({}, SPR_DEF.spider.p, { b: '#1a5a5a', p: '#3ab0a0', r: '#ffe14a', l: '#0e3a3a' }), g: SPR_DEF.spider.g };
+SPR_DEF.drake = { p: Object.assign({}, SPR_DEF.wolf.p, { g: '#b0402a', d: '#5a1810', w: '#ffb060', e: '#fff0a0' }), g: SPR_DEF.wolf.g };
+SPR_DEF.magma = { p: Object.assign({}, SPR_DEF.golem.p, { g: '#5a2a1a', d: '#2a100a', l: '#ff8a2a', o: '#fff0a0' }), g: SPR_DEF.golem.g };
+SPR_DEF.drowned_lord = { p: Object.assign({}, SPR_DEF.wraith.p, { a: '#b8fff0', b: '#3ab0a0', c: '#125a5a', k: '#04201e', y: '#ffd35a' }), g: ['..y.y.y.y...', '..yyyyyyy...'].concat(SPR_DEF.wraith.g) };
+SPR_DEF.ember_wyrm = { p: Object.assign({}, SPR_DEF.golem.p, { g: '#c0401a', d: '#4a0e06', l: '#ffb040', o: '#ffffff', y: '#ffd35a' }), g: ['....y..y....', '....yyyy....'].concat(SPR_DEF.golem.g) };
+['bandit_king', 'bog_hag', 'ash_tyrant', 'hollow_king', 'ghoul', 'serpent', 'drake', 'magma', 'drowned_lord', 'ember_wyrm'].forEach(k => SPR[k] = mkSprite(SPR_DEF[k].g, SPR_DEF[k].p));
 /* ---- hero with walk frames: 0 idle, 1/2 steps ---- */
 const LEGS = { 0: ['..pp....pp..', '..pp....pp..', '..kk....kk..', '.kkk....kkk.'], 1: ['..pp....pp..', '..kk....pp..', '........kk..', '........kkk.'], 2: ['..pp....pp..', '..pp....kk..', '..kk........', '.kkk........'] };
 function heroSpriteF(style, fr, tunic) {
@@ -1810,13 +1827,13 @@ NET.sync = async function () {
   if (!NET.on || NET.busy || !S || UI.inTitle) return; NET.busy = true;
   try {
     const sc = getScene(), h = RT.hero, hq = H();
-    const r = await NET.rpc(NET.legacy ? 'eh_sync' : 'eh_sync2', { p_token: NET.token, p_loc: S.loc, p_x: h.x / sc.W, p_y: h.y / sc.H, p_lv: combatLv(), p_style: hq.style, p_tunic: S.pet || '', p_act: (S.act && S.act.type) || '', p_chat_after: NET.chatAfter });
+    const r = await NET.rpc(NET.legacy ? 'eh_sync' : 'eh_sync3', { p_token: NET.token, p_loc: S.loc, p_x: h.x / sc.W, p_y: h.y / sc.H, p_lv: combatLv(), p_style: hq.style, p_tunic: S.pet || '', p_act: (S.act && S.act.type) || '', p_chat_after: NET.chatAfter });
     if (r.err) { NET.on = false; toast(tr('err_net'), 'bad'); return; }
     NET.failN = 0; NET.online = r.online || 0;
     const seen = new Set();
     for (const p of r.players) { seen.add(p.k); let o = NET.others.get(p.k); if (!o) { o = { k: p.k, x: p.x * sc.W, y: p.y * sc.H, wt: 0 }; NET.others.set(p.k, o); } Object.assign(o, { n: p.n, lv: p.lv, s: p.s, a: p.a, fx: p.x, fy: p.y, t: p.t, g: p.g, p: p.p }); }
     for (const k of [...NET.others.keys()]) if (!seen.has(k)) NET.others.delete(k);
-    for (const c of r.chat) { if (c.id <= NET.chatAfter) continue; NET.chatAfter = c.id; RT.chat.push({ n: c.n, me: c.n === NET.name, net: 1, g: c.g ? 1 : 0, line: c.m }); if (RT.chat.length > 80) RT.chat.shift(); if (UI.panel === 'social' && UI.tab.social === 'chat') RT.dirtyUI = true; }
+    const first = NET.chatAfter === 0; for (const c of r.chat) { if (c.id <= NET.chatAfter) continue; NET.chatAfter = c.id; if (c.pv) { const txt = tr(c.m === 'W' ? 'ar_lost_to' : 'ar_won_vs', c.n); if (!first) toast('⚔ ' + esc(txt), c.m === 'W' ? 'bad' : 'gold'); RT.chat.push({ n: '⚔', net: 1, line: txt }); MM.pvp = null; continue; } RT.chat.push({ n: c.n, me: c.n === NET.name, net: 1, g: c.g ? 1 : 0, line: c.m }); if (RT.chat.length > 80) RT.chat.shift(); if (UI.panel === 'social' && UI.tab.social === 'chat') RT.dirtyUI = true; }
     NET.guild = r.guild || null; NET.payout = +r.payout || 0; NET.wb = r.wb || NET.wb || null; if (NET.payout > 0 && !NET.payTold) { NET.payTold = 1; toast(tr('pm_payout') + ': ' + fmt(NET.payout), 'gold'); } if (!NET.payout) NET.payTold = 0; if (!NET.guild && UI.chatCh === 'g') UI.chatCh = 'w';
     NET.invites = r.invites; const np = r.party; if (np.length !== NET.party.length) RT.dirtyUI = true; NET.party = np;
     for (const iv of NET.invites) if (!NET.shown[iv.id]) { NET.shown[iv.id] = 1; toast(tr('party_invite_from', iv.from), 'ok'); RT.dirtyUI = true; if (UI.panel !== 'social') { UI.panel = 'social'; UI.tab.social = 'group'; buildNav(); renderPanel(); } }
@@ -2296,7 +2313,7 @@ function raidTick(dt) {
   if (MM.raid.key !== key) { MM.raid.key = key; MM.raid.info = null; MM.raid.pend = 0; MM.raid.t = 0; }
   MM.raid.t -= dt; if (MM.raid.t > 0 || MM.raid.busy) return; MM.raid.t = 1.2;
   const e = F.enemies[0]; if (!e && key !== 'world') return; const send = Math.min(6000, Math.round(MM.raid.pend)); MM.raid.pend -= send; MM.raid.busy = 1; const bossId = S.act.id;
-  NET.rpc('eh_raid_hit', { p_token: NET.token, p_key: key, p_boss: bossId, p_maxhp: e ? e.max : 1, p_dmg: F.st === 'fight' ? send : 0 }).then(r => {
+  NET.rpc('eh_raid_hit2', { p_token: NET.token, p_key: key, p_boss: bossId, p_maxhp: e ? e.max : 1, p_dmg: F.st === 'fight' ? send : 0 }).then(r => {
     MM.raid.busy = 0; if (r.err || !S.act || S.act.id !== bossId || raidKey() !== key) return; MM.raid.info = r; RT.dirtyUI = true;
     const F2 = RT.f; if (!F2 || !F2.boss) return; const e2 = F2.enemies[0];
     if (r.dead) {
@@ -2342,8 +2359,8 @@ function P_chat() {
 }
 
 /* ---------- arena (async duels vs other players' heroes) ---------- */
-function pvpLeft() { if (!S.pvpd || S.pvpd.day !== today()) S.pvpd = { day: today(), n: 0 }; return Math.max(0, 10 - S.pvpd.n); }
-function pvpLoad(opp, win) { if (MM.pvpBusy) return Promise.resolve(null); MM.pvpBusy = 1; return NET.rpc('eh_pvp', { p_token: NET.token, p_opp: opp || null, p_win: !!win }).then(r => { MM.pvpBusy = 0; if (!r.err) { MM.pvp = { t: Date.now(), rating: r.rating, opps: r.opps || [] }; RT.dirtyUI = true; } return r; }).catch(() => { MM.pvpBusy = 0; MM.pvp = MM.pvp || { t: Date.now(), rating: 1000, opps: [] }; return null; }); }
+function pvpLeft() { return MM.pvp ? MM.pvp.left : 0; }
+function pvpLoad(opp, win) { if (MM.pvpBusy) return Promise.resolve(null); MM.pvpBusy = 1; return NET.rpc('eh_pvp2', { p_token: NET.token, p_opp: opp || null }).then(r => { MM.pvpBusy = 0; if (!r.err) { MM.pvp = { t: Date.now(), rating: r.rating, left: r.left, opps: r.opps || [] }; RT.dirtyUI = true; } return r; }).catch(() => { MM.pvpBusy = 0; MM.pvp = MM.pvp || { t: Date.now(), rating: 1000, left: 0, opps: [] }; return null; }); }
 function duelSim(a, b) {
   let ha = a.hp, hb = b.hp, ta = a.iv * 0.5, tb = b.iv * 0.5 + 0.2, t = 0; const hit = (x, y) => rnd() < clamp(0.55 + (x.acc - y.def) * 0.012, 0.15, 0.95) ? Math.max(1, 1 + Math.floor(rnd() * x.mh) - (y.soak || 0)) : 0;
   while (ha > 0 && hb > 0 && t < 600) { const d = Math.min(ta, tb); t += d; ta -= d; tb -= d; if (ta <= 0) { ta += Math.max(0.4, a.iv); hb -= hit(a, b); } if (tb <= 0 && hb > 0) { tb += Math.max(0.4, b.iv); ha -= hit(b, a); } }
@@ -2355,6 +2372,17 @@ function P_arena() {
   return o + (MM.pvp.opps.filter(p => p.cs && p.cs.hp).map(p => `<div class="mrow"><img class="msp pix" src="${heroUrlS(p.cs.st || 'melee')}"><div class="grow"><b>${esc(p.n)}</b>${titleText(p.t) ? ` <small class="trait">${esc(titleText(p.t))}</small>` : ''}<div class="small muted">${tr('lv')} ${p.lv} · ${tr('ar_rating')} ${p.pvp}</div></div>${stBtn('duel', p.k, tr('ar_duel'), 'go', left < 1)}</div>`).join('') || `<div class="muted pad">${tr('ar_none')}</div>`);
 }
 
+function playDuel(d, rating) {
+  let ha = d.ma, hb = d.mb, i = 0; const pct = (v, mx) => Math.round(clamp(v / mx, 0, 1) * 100) + '%';
+  modal(`<h2>⚔ ${tr('ar_title')}</h2><div class="duel"><div class="dside"><img class="pix dsp" src="${heroUrl()}"><b>${esc(S.name)}</b><div class="bar hp"><i id="dA" style="width:100%"></i></div><small id="dAt">${d.ma}</small></div><div class="dvs" id="dMid">VS</div><div class="dside"><img class="pix dsp flip" src="${heroUrlS(d.st || 'melee')}"><b>${esc(d.n)}</b><div class="bar hp"><i id="dB" style="width:100%"></i></div><small id="dBt">${d.mb}</small></div></div><div id="dRes" class="center"></div>`);
+  const upd = () => { $('#dA').style.width = pct(ha, d.ma); $('#dB').style.width = pct(hb, d.mb); $('#dAt').textContent = Math.max(0, Math.round(ha)); $('#dBt').textContent = Math.max(0, Math.round(hb)); };
+  const tm = setInterval(() => {
+    if (!$('#dA')) { clearInterval(tm); return; }
+    if (i < d.log.length && ha > 0 && hb > 0) { const s = d.log[i][0], dm = d.log[i][1]; i++; if (s === 0) hb -= dm; else ha -= dm; $('#dMid').textContent = dm ? (s === 0 ? dm + ' →' : '← ' + dm) : tr('miss'); $('#dMid').className = 'dvs ' + (s === 0 ? 'gold' : 'bad'); if (dm) sfx(s === 0 ? 'hit' : 'hurt'); upd(); return; }
+    clearInterval(tm); ha = d.ha; hb = d.hb; upd(); $('#dMid').textContent = d.win ? '🏆' : '☠'; sfx(d.win ? 'quest' : 'death');
+    $('#dRes').innerHTML = `<h2 class="${d.win ? 'gold' : 'bad'}">${d.win ? tr('ar_win') : tr('ar_lose')}</h2><p class="small">${tr('ar_rating')}: ${rating} (${d.delta >= 0 ? '+' : ''}${d.delta})${d.win ? ` · +${20 + d.lv * 4} ${tr('coins')}` : ''}</p>${stBtn('closemodal', '', tr('continue'), 'go')}`;
+  }, 240);
+}
 /* ---------- daily tasks + login streak ---------- */
 function dayCheck() {
   const d = today(); const dl = S.daily;
@@ -2452,15 +2480,12 @@ Object.assign(ACT, {
     NET.rpc('eh_mkt_buy', { p_token: NET.token, p_id: id, p_qty: q }).then(r => { if (r.ok && ITEMS[r.item]) { S.coins -= Math.min(S.coins, +r.cost); addItem(r.item, r.qty); toast(tr('pm_bought', r.qty, iname(r.item)), 'ok'); sfx('equip'); save(); NET.pushSave(); } else toast(tr('pm_gone'), 'bad'); mkLoad(true); }).catch(() => toast(tr('err_net'), 'bad')); },
   mk_cancel(v) { NET.rpc('eh_mkt_cancel', { p_token: NET.token, p_id: +v }).then(r => { if (r.ok && ITEMS[r.item]) { addItem(r.item, r.qty); save(); } else toast(tr('pm_gone'), 'bad'); mkLoad(true); }).catch(() => toast(tr('err_net'), 'bad')); },
   wboss() { if (!NET.on) return; const go = wb => { if (!wb || !MONS[wb.boss]) return; if (wb.dead) { toast(tr('wb_dead', 30), 'bad'); return; } UI.panel = null; goDo({ k: 'fight', id: wb.boss, world: 1 }); };
-    if (NET.wb) go(NET.wb); else NET.rpc('eh_raid_hit', { p_token: NET.token, p_key: 'world', p_boss: '', p_maxhp: 0, p_dmg: 0 }).then(r => { if (!r.err) { NET.wb = r; go(r); } }).catch(() => toast(tr('err_net'), 'bad')); },
+    if (NET.wb) go(NET.wb); else NET.rpc('eh_raid_hit2', { p_token: NET.token, p_key: 'world', p_boss: '', p_maxhp: 0, p_dmg: 0 }).then(r => { if (!r.err) { NET.wb = r; go(r); } }).catch(() => toast(tr('err_net'), 'bad')); },
   g_create() { const n = (UI.f.gName || '').trim(), t = (UI.f.gTag || '').trim(); if (S.coins < GUILD_COST) return; gCall('create', t, n).then(r => { if (!r) return; if (r.err) toast(tr(r.err === 'taken' ? 'g_taken' : 'g_bad'), 'bad'); else { S.coins -= GUILD_COST; sfx('quest'); save(); } }); },
   g_join(v) { gCall('join', v).then(r => { if (r && r.err) toast(tr(r.err === 'full' ? 'g_fullg' : 'pm_gone'), 'bad'); else if (r) sfx('quest'); }); },
   g_leave() { gCall('leave'); },
   g_give(v) { const a = +v; if (S.coins < a) return; S.coins -= a; gCall('give', a).then(r => { if (!r || r.err) S.coins += a; else save(); }); },
-  duel(v) { const p = MM.pvp && MM.pvp.opps.find(o => o.k === v); if (!p || pvpLeft() < 1) return; const me = netStats().cs; const r = duelSim(me, p.cs); S.pvpd.n++;
-    if (r.win) { S.pvpWins++; const c = 20 + p.lv * 4; S.coins += c; }
-    modal(`<h2 class="${r.win ? 'gold' : 'bad'}">${r.win ? tr('ar_win') : tr('ar_lose')}</h2><p>${tr('ar_res', r.ha, esc(p.n), r.hb)}</p><p id="duelD" class="small muted">…</p><div class="rowb">${stBtn('closemodal', '', tr('continue'), 'go')}</div>`); sfx(r.win ? 'quest' : 'death');
-    pvpLoad(v, r.win).then(q => { const el = $('#duelD'); if (el && q && !q.err) el.textContent = `${tr('ar_rating')}: ${q.rating} (${q.delta >= 0 ? '+' : ''}${q.delta})`; }); save(); },
+  duel(v) { if (pvpLeft() < 1) return; pvpLoad(v).then(r => { if (!r) { toast(tr('err_net'), 'bad'); return; } if (r.err) { toast(tr(r.err === 'limit' ? 'ar_limit' : 'pm_gone'), 'bad'); return; } const d = r.duel; if (!d) return; if (d.win) { S.pvpWins++; S.coins += 20 + d.lv * 4; save(); } playDuel(d, r.rating); }); },
   dl_login() { if (S.daily.login) return; S.daily.login = 1; const c = 40 * Math.min(7, S.daily.streak); S.coins += c; toast(`+${c} ${tr('coins')}`, 'gold'); sfx('quest'); },
   dl_task(v) { const t = S.daily.tasks[+v]; if (!t || t.done || dailyProg(t) < t.need) return; t.done = 1; const c = dailyReward(t); S.coins += c; addXp(H().sk, 30 + combatLv() * 10); toast(`+${c} ${tr('coins')}`, 'gold'); sfx('quest'); },
   dung(v) { if (dungLeft() < 1 || dungBlock(v)) return; const ms = dungMons(v); if (!ms.length) return; UI.panel = null; goDo({ k: 'fight', id: ms[0], dung: v }); },
