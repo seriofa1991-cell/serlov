@@ -366,6 +366,7 @@ D('up_do', 'Upgrade', 'Tobulinti', 'Улучшить'); D('up_ok', 'Upgrade succ
 D('rar_1', 'Rare', 'Retas', 'Редкий'); D('rar_2', 'Epic', 'Epinis', 'Эпический');
 D('tt_title', 'Titles', 'Titulai', 'Титулы'); D('tt_hint', 'Earn titles and show one next to your name.', 'Pelnyk titulus ir rodyk vieną prie savo vardo.', 'Зарабатывай титулы и показывай один рядом с именем.'); D('tt_use', 'Use', 'Naudoti', 'Выбрать'); D('tt_used', 'Active', 'Aktyvus', 'Активен'); D('tt_off', 'Remove title', 'Nuimti titulą', 'Снять титул');
 D('tt_new', 'New title: {0}', 'Naujas titulas: {0}', 'Новый титул: {0}');
+D('guide', 'Guide', 'Vedlys', 'Обучение'); D('guide_step', 'Guide step {0}/{1} done', 'Vedlio žingsnis {0}/{1} atliktas', 'Шаг обучения {0}/{1} выполнен'); D('guide_done', 'Guide complete! +200 coins', 'Vedlys baigtas! +200 monetų', 'Обучение пройдено! +200 монет');
 
 'use strict';
 /* ===== DATA: items, recipes, monsters, nodes, zones, quests ===== */
@@ -890,14 +891,14 @@ function monsterAttack(e, F) {
 function rollDrops(m, e, F) {
   const h = H(); const lucky = rnd() < h.luck ? 2 : 1;
   const mult = F.champ ? 2 : 1;
-  const c = Math.round(ri(m.coin[0], m.coin[1]) * (1 + 0.03 * (F.wave - 1)) * (F.champ ? 3 : 1) * lucky); S.coins += c; S.run.coins += c;
+  const c = Math.round(ri(m.coin[0], m.coin[1]) * (1 + 0.03 * (F.wave - 1)) * (F.boss ? 6 : F.champ ? 3 : 1) * lucky); S.coins += c; S.run.coins += c;
   for (const d of m.drops) {
     if (rnd() < Math.min(1, d[1] * (F.champ ? 1.5 : 1))) { const n = ri(d[2], d[3]) * lucky; addItem(d[0], n); if (ITEMS[d[0]].type === 'gear' && !RT.sim) { RT.events.push({ k: 'drop', id: d[0] }); jlog('j_drop', 'it:' + d[0]); } }
   }
   if (F.champ && rnd() < 0.35) { const bar = MT[Math.min(3, Math.floor(F.wave / 12))]; addItem('bar_' + bar.id, ri(1, 3)); }
 }
 function onKill(e, F) {
-  const m = MONS[e.id]; const h = H(); const eff = m.lv + (F.wave - 1) * 0.5; const df = clamp(1.25 - (h.lvl - eff) / 25, 0.1, 1.25); const base = m.xp * 0.35 * (1 + 0.03 * (F.wave - 1)) * (F.champ ? 3 : 1) * df;
+  const m = MONS[e.id]; const h = H(); const eff = m.lv + (F.wave - 1) * 0.5; const df = clamp(1.25 - (h.lvl - eff) / 25, 0.1, 1.25); const base = m.xp * 0.26 * (1 + 0.03 * (F.wave - 1)) * (F.boss ? 8 : F.champ ? 3 : 1) * df;
   addXp(h.sk, base); addXp('vitality', base * 0.35); addXp('defence', base * (S.stance === 'guarded' ? 0.7 : 0.22));
   S.stats.kills[e.id] = (S.stats.kills[e.id] || 0) + 1; S.run.kills++;
   rollDrops(m, e, F); RT.dirtyUI = true;
@@ -2146,7 +2147,7 @@ function updateHud(force) {
   } else if (S.act) { const n = NODE_BY_ID[S.act.id]; const pr = RT.g ? RT.g.p / n.t : 0; setTxt('#banner', `<div class="wave small">${tr('working')}: ${nm(n.n)}</div><div class="bar gb"><i style="width:${Math.round(clamp(pr, 0, 1) * 100)}%"></i></div>`, 1); }
   else setTxt('#banner', '', 1);
   // goal / hint (bottom)
-  let tk = ''; if (RT.view !== 'map') { if (!S.act && !RT.travel) tk += `<div class="hint">${tr('hint_town')}</div>`; if (S.quest.ch < 1) { const st = CHAPTER1.steps[S.quest.step], p = stepProgress(); if (st && p) tk += `<div class="goal"><b>${tr('quest_goal')}:</b> ${nm(st.d)} <span class="gold">${p.cur}/${p.tot}</span></div>`; } }
+  let tk = ''; if (RT.view !== 'map') { const gh = guideHtml(); if (gh) tk += gh; else if (!S.act && !RT.travel) tk += `<div class="hint">${tr('hint_town')}</div>`; if (S.quest.ch < 1) { const st = CHAPTER1.steps[S.quest.step], p = stepProgress(); if (st && p) tk += `<div class="goal"><b>${tr('quest_goal')}:</b> ${nm(st.d)} <span class="gold">${p.cur}/${p.tot}</span></div>`; } }
   setTxt('#track', tk, 1);
   const r = S.run; setTxt('#runbar', `<span class="rl">${tr('this_run')}</span><span>${ico(['gem', '#6ab0e8'], 'xs')} +${fmt(r.xp)}</span><span>${ico(['skull', '#e8e0cc'], 'xs')} +${fmt(r.kills)}</span><span>${ico(['coin', '#e8c45a'], 'xs')} +${fmt(r.coins)}</span><span>${ico(['meat', '#e58a6a'], 'xs')} ${fmt(foodCount())}</span><span>${ico(['coin', '#c8a040'], 'xs')} ${fmt(S.coins)}</span>`, 1);
   const mc = mapCardHtml(); if (hudCache['#mapcard'] !== mc) { hudCache['#mapcard'] = mc; const el = $('#mapcard'); el.innerHTML = mc; el.style.display = mc ? '' : 'none'; }
@@ -2287,6 +2288,7 @@ function setupWave(F) {
   const boss = !!MONS[F.mon].boss; const champ = boss || F.wave % 5 === 0; F.boss = boss; const n = champ ? 1 : Math.min(2 + Math.floor((F.wave - 1) / 3), 6);
   F.enemies = []; for (let i = 0; i < n; i++) F.enemies.push(boss ? mkEnemy(F.mon, 1, false, i) : mkEnemy(F.mon, F.wave, champ, i)); F.champ = champ; F.hitsTaken = 0;
   if (boss && S.act && S.act.world) { const e = F.enemies[0], h = H(); e.mh = Math.max(3, Math.round(h.maxHp * 0.13)); e.def = Math.max(1, h.acc - 4); const wb = NET.wb; e.max = e.hp = (wb && wb.maxhp) || 60000; if (wb) e.hp = Math.max(1, wb.hp); }
+  if (boss && !(S.act && S.act.world)) { const e = F.enemies[0]; e.max = e.hp = Math.round(e.hp * 4 * (1 + 0.6 * Math.max(0, partyN() - 1))); e.mh = Math.round(e.mh * 1.25); }
   if (boss) { MM.raid.pend = 0; MM.raid.t = 0.2; }
 }
 function raidTick(dt) {
@@ -2465,9 +2467,20 @@ Object.assign(ACT, {
   pet(v) { S.pet = v || null; RT.hdirty = true; }, petbuy(v) { const p = PET_BY[v]; if (!p || S.pets.includes(v) || S.coins < p.cost) return; S.coins -= p.cost; S.pets.push(v); S.pet = v; RT.hdirty = true; sfx('quest'); },
   upg(v) { const g = gearByUid(+v); if (!g || (g.up || 0) >= 10) return; const c = upCost(g); if (S.coins < c) return; S.coins -= c; if (rnd() * 100 < upChance(g)) { g.up = (g.up || 0) + 1; RT.hdirty = true; toast(tr('up_ok'), 'ok'); sfx('craft'); } else { toast(tr('up_fail'), 'bad'); sfx('hurt'); } }
 });
+/* ---------- newcomer guide ---------- */
+const GUIDE = [
+  { t: 'Open Adventure → Fight and attack a monster|Atidaryk Nuotykiai → Kova ir pulk monstrą|Открой Приключения → Бой и атакуй монстра', ok: () => sumVals(S.stats.kills) >= 1 },
+  { t: 'Open Adventure → Gather and collect a resource|Atidaryk Nuotykiai → Rinkimas ir surink išteklių|Открой Приключения → Сбор и добудь ресурс', ok: () => sumVals(S.stats.gathered) >= 1 },
+  { t: 'Return to town and craft something (Adventure → Craft)|Grįžk į miestą ir ką nors pagamink (Nuotykiai → Gamyba)|Вернись в город и создай предмет (Приключения → Ремесло)', ok: () => sumVals(S.stats.crafted) >= 1 },
+  { t: 'Improve an item: Hero → Upgrade|Patobulink daiktą: Herojus → Tobulinti|Улучши предмет: Герой → Улучшить', ok: () => S.gear.some(g => g.up) },
+  { t: 'Invite someone: Social → Party|Pakviesk ką nors: Bendruomenė → Party|Пригласи кого-нибудь: Общение → Группа', ok: () => partyN() >= 1 },
+  { t: 'Claim your daily reward: Adventure → Daily|Atsiimk dienos atlygį: Nuotykiai → Kasdien|Забери награду дня: Приключения → Дейлики', ok: () => S.daily && S.daily.login }
+];
+function guideTick() { if (S.guide === undefined) S.guide = totalLevel() > 45 ? 99 : 0; while (S.guide < GUIDE.length && GUIDE[S.guide].ok()) { S.guide++; S.coins += 30; toast('✔ ' + tr('guide_step', S.guide, GUIDE.length) + ' +30', 'ok'); sfx('quest'); if (S.guide >= GUIDE.length) { S.guide = 99; S.coins += 200; toast('🎓 ' + tr('guide_done'), 'gold'); } } }
+function guideHtml() { return S.guide !== undefined && S.guide < GUIDE.length ? `<div class="goal"><b>${tr('guide')} ${S.guide + 1}/${GUIDE.length}:</b> ${nm(GUIDE[S.guide].t)}</div>` : ''; }
 function mmTick(dt) {
   if (!S || UI.inTitle) return; raidTick(dt);
-  MM.dayT += dt; if (MM.dayT > 3) { MM.dayT = 0; dayCheck(); titleCheck(); }
+  MM.dayT += dt; if (MM.dayT > 3) { MM.dayT = 0; dayCheck(); titleCheck(); guideTick(); }
 }
 
 'use strict';
