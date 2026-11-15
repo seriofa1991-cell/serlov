@@ -178,6 +178,7 @@ select{background:#17110f;color:#f0e6d0;border:2px solid var(--line2);border-rad
 #track .goal button{pointer-events:auto;margin-left:6px}
 #track .goal.auto{border-color:var(--gold)}
 .chips .chip.gold{border-color:var(--gold);color:var(--gold)}
+#arena canvas{touch-action:none}
 
 </style>
 </head>
@@ -807,7 +808,7 @@ function calcHero() {
   let def = 0, pow = 0, acc = 0, mag = 0, hp = 0, luck = 0, swift = 0, wspd = 1, style = 'melee';
   for (const s of SLOTS) {
     const g = equipped(s); if (!g) continue; const it = ITEMS[g.id]; const gm = gearMult(g);
-    def += it.def * gm; acc += it.acc * gm; mag += it.mag * gm; hp += (it.hp || 0) * gm;
+    def += it.def * gm; acc += it.acc * gm; mag += it.mag * gm; hp += (it.hp || 0) * gm; luck += (it.luck || 0) * gm; pow += (it.bpow || 0) * gm;
     if (s === 'weapon') { pow += it.pow * gm; wspd = it.spd; style = it.style || 'melee'; }
     for (const t of g.tr) { const tt = TRAITS[t]; if (!tt) continue; def += tt.def || 0; pow += (s === 'weapon' ? tt.pow || 0 : 0); hp += tt.hp || 0; swift += tt.spd || 0; luck += tt.luck || 0; acc += tt.acc || 0; }
   }
@@ -1015,15 +1016,15 @@ function unequip(slot) { delete S.equip[slot]; RT.hdirty = true; RT.dirtyUI = tr
 function counterOf(kind, id) { const m = kind === 'kill' ? S.stats.kills : kind === 'gather' ? S.stats.gathered : S.stats.crafted; return m[id] || 0; }
 function baseOf(kind, id) { const b = S.quest.base; const m = kind === 'kill' ? b.kills : kind === 'gather' ? b.gathered : b.crafted; return (m && m[id]) || 0; }
 function stepProgress() {
-  const st = CHAPTER1.steps[S.quest.step]; if (!st) return null;
+  const C = CUR_CH(); const st = C && C.steps[S.quest.step]; if (!st) return null;
   if (st.k === 'multi') { let cur = 0, tot = 0; for (const id in st.ids) { tot += st.ids[id]; cur += Math.min(st.ids[id], counterOf('gather', id) - baseOf('gather', id)); } return { cur, tot }; }
   return { cur: Math.min(st.n, counterOf(st.k, st.id) - baseOf(st.k, st.id)), tot: st.n };
 }
 function advanceStep() {
-  const p = stepProgress(); if (!p || p.cur < p.tot) return false;
+  const p = stepProgress(); if (!p || p.cur < p.tot) return false; const C = CUR_CH();
   S.quest.step++; S.quest.base = snapCounters(); sfx('quest');
-  if (S.quest.step >= CHAPTER1.steps.length) {
-    S.quest.ch = 1; const r = CHAPTER1.reward; S.coins += r.coins; addGear(r.item, []); for (const k in r.xp) addXp(k, r.xp[k]); addItem('chest_gold', 1); addItem('key_gold', 1); jlog('j_chapter');
+  if (S.quest.step >= C.steps.length) {
+    S.quest.ch = (S.quest.ch || 0) + 1; S.quest.step = 0; const r = C.reward; S.coins += r.coins; addGear(r.item, []); for (const k in r.xp) addXp(k, r.xp[k]); addItem('chest_gold', 1); addItem('key_gold', 1); jlog('j_chapter');
   }
   RT.dirtyUI = true; return true;
 }
@@ -1335,43 +1336,43 @@ const SCENE_DEF = {
     sc.scatter('tree', 7, [0.02, 0.1, 0.98, 0.95], () => TREE_COL[Math.floor(sc.rg() * 4)], null, 12);
     sc.scatter('bush', 4, [0.05, 0.4, 0.95, 0.95], '#3a7a30', null, 8);
   },
-  meadow(sc) {
+  meadow(sc, loc) {
     sc.hub = [0.5, 0.55]; sc.spawn = [0.2, 0.2]; sc.bossSpot = [0.74, 0.27];
     sc.prop('barn', 0.22, 0.30); sc.prop('hay', 0.40, 0.30); sc.prop('hay', 0.08, 0.42);
     sc.prop('tent', 0.78, 0.22, '#7a2a2a'); sc.prop('banner', 0.90, 0.30, '#7a2a2a'); sc.prop('skullpole', 0.64, 0.30);
     for (let i = 0; i < 8; i++) { const p = sc.P(0.1 + i * 0.1, 0.9); sc.add({ k: 'prop', name: 'fence', x: p.x, y: p.y, spr: PROPS.fence(i), w: 12, h: 14, r: 4 }); }
-    sc.nodeAt(['n_berry', 'n_flax'], [[0.28, 0.72], [0.62, 0.78]]);
+    sc.nodeAt(LOCS[loc].nodes || ['n_berry', 'n_flax'], [[0.28, 0.72], [0.62, 0.78], [0.45, 0.62]]);
     sc.scatter('tree', 5, [0.02, 0.35, 0.98, 0.85], () => TREE_COL[Math.floor(sc.rg() * 4)], null, 12);
     sc.scatter('rock', 3, [0.1, 0.4, 0.9, 0.85], '#8a8a90', false, 8);
     sc.decals.push((x, s) => { for (let r = 0; r < 5; r++) { x.fillStyle = r % 2 ? '#6a4a2a' : '#7a5a34'; x.fillRect(Math.round(s.W * 0.40), Math.round(s.H * 0.64) + r * 3, Math.round(s.W * 0.4), 2); } });
   },
-  woods(sc) {
+  woods(sc, loc) {
     sc.hub = [0.55, 0.5]; sc.spawn = [0.8, 0.7];
     const pos = [[0.22, 0.36], [0.5, 0.30], [0.78, 0.40], [0.30, 0.62], [0.62, 0.66], [0.2, 0.84], [0.82, 0.84]];
-    sc.nodeAt(LOCS.oak.nodes, pos);
+    sc.nodeAt(LOCS[loc].nodes, pos);
     sc.scatter('tree', 16, [0.02, 0.15, 0.98, 0.95], () => TREE_COL[Math.floor(sc.rg() * 4)], null, 13);
     sc.scatter('bush', 4, [0.05, 0.3, 0.95, 0.95], '#2f5a2a', '#c04a3a', 8); sc.scatter('mush', 5, [0.05, 0.3, 0.95, 0.95], '#d0503a', null, 4);
     sc.prop('hay', 0.45, 0.82);
   },
-  quarry(sc) {
+  quarry(sc, loc) {
     sc.hub = [0.5, 0.6]; sc.spawn = [0.5, 0.82];
-    sc.nodeAt(LOCS.quarry.nodes, [[0.26, 0.40], [0.74, 0.38], [0.26, 0.64], [0.74, 0.62], [0.5, 0.78]]);
+    sc.nodeAt(LOCS[loc].nodes, [[0.26, 0.40], [0.74, 0.38], [0.26, 0.64], [0.74, 0.62], [0.5, 0.78]]);
     sc.scatter('rock', 9, [0.04, 0.15, 0.96, 0.95], '#8a8a90', true, 11); sc.scatter('rock', 8, [0.04, 0.15, 0.96, 0.95], '#7a7a82', false, 7);
     sc.prop('barrel', 0.86, 0.80); sc.prop('barrel', 0.9, 0.84); sc.prop('lamp', 0.12, 0.54);
     sc.decals.push((x, s) => { x.fillStyle = '#5a5650'; for (let i = 0; i < 26; i++) { const a = s.rg() * s.W, b = s.rg() * s.H; x.fillRect(a, b, 3 + (i % 4), 1); } });
   },
-  lake(sc) {
+  lake(sc, loc) {
     sc.hub = [0.45, 0.66]; sc.spawn = [0.12, 0.62]; sc.ponds.push({ x: 0.52, y: 0.27, rx: 0.5, ry: 0.19 });
-    sc.nodeAt(LOCS.lake.nodes, [[0.20, 0.42], [0.42, 0.46], [0.64, 0.46], [0.84, 0.42]]);
+    sc.nodeAt(LOCS[loc].nodes, [[0.20, 0.42], [0.42, 0.46], [0.64, 0.46], [0.84, 0.42]]);
     sc.prop('dock', 0.52, 0.52, null, null, { r: 6 }); sc.prop('barrel', 0.62, 0.62); sc.prop('hay', 0.8, 0.72);
     sc.scatter('reeds', 7, [0.05, 0.4, 0.95, 0.5], null, null, 5); sc.scatter('tree', 6, [0.02, 0.62, 0.98, 0.95], () => TREE_COL[Math.floor(sc.rg() * 4)], null, 12);
     for (let i = 0; i < 4; i++) { const p = sc.P(0.15 + sc.rg() * 0.7, 0.2 + sc.rg() * 0.12); sc.add({ k: 'prop', name: 'lilies', x: p.x, y: p.y, spr: PROPS.lilies(), w: 14, h: 8, r: 0, flat: true }); }
   },
-  mire(sc) {
+  mire(sc, loc) {
     sc.hub = [0.5, 0.6]; sc.spawn = [0.8, 0.8]; sc.bossSpot = [0.26, 0.28];
     sc.ponds.push({ x: 0.22, y: 0.62, rx: 0.16, ry: 0.07 }, { x: 0.78, y: 0.52, rx: 0.13, ry: 0.06 }, { x: 0.5, y: 0.9, rx: 0.2, ry: 0.05 });
     sc.prop('hut', 0.18, 0.40); sc.prop('skullpole', 0.36, 0.34); sc.prop('mush', 0.30, 0.46, '#a050d0');
-    sc.nodeAt(LOCS.mire.nodes, [[0.62, 0.74], [0.38, 0.80]]);
+    sc.nodeAt(LOCS[loc].nodes, [[0.62, 0.74], [0.38, 0.80]]);
     sc.scatter('dead', 7, [0.04, 0.15, 0.96, 0.9], null, null, 11); sc.scatter('mush', 8, [0.04, 0.3, 0.96, 0.95], '#5ad8a0', null, 4); sc.scatter('reeds', 6, [0.04, 0.3, 0.96, 0.95], null, null, 5);
   },
   ash(sc) {
@@ -1435,7 +1436,7 @@ RT.nodePos = (id) => { if (!SCN) return null; const n = SCN.nodes.find(q => q.id
 function nodeSpot(nd) { return nd.n.k === 'water' ? { x: nd.x, y: nd.y + 13 } : { x: nd.x - 15, y: nd.y + 2 }; }
 
 /* ================= commands: walk, interact, travel ================= */
-function cmdLoc(cmd) { if (cmd.k === 'fight') return MON_LOC[cmd.id]; if (cmd.k === 'gather') return NODE_LOC[cmd.id]; if (cmd.k === 'npc' || cmd.k === 'station' || cmd.k === 'board' || cmd.k === 'bank') return 'town'; return null; }
+function cmdLoc(cmd) { if (cmd.k === 'fight') return MON_LOC[cmd.id]; if (cmd.k === 'gather') return NODE_LOC[cmd.id]; if (cmd.k === 'npc' || cmd.k === 'station' || cmd.k === 'board' || cmd.k === 'bank') return (S && isHub(S.loc)) ? S.loc : 'town'; return null; }
 function goDo(cmd) {
   if (RT.auto && !cmd.auto && !RT.autoCall) autoStop();
   if (RT.travel) { RT.pending = cmd; return; }
@@ -1535,7 +1536,7 @@ function onArenaTap(x, y) {
   walkTo(x, y, null);
 }
 document.addEventListener('click', (e) => {
-  const ar = $('#arena'); if (!ar || UI.creating || !S || !WV.px || UI.inTitle) return; if (!(e.target === WV.cv || e.target === WV.lab || e.target === ar)) return;
+  const ar = $('#arena'); if (!ar || UI.creating || !S || !WV.px || UI.inTitle) return; if (!(e.target === WV.cv || e.target === WV.lab || e.target === ar)) return; if (RT._swallow) { RT._swallow = 0; return; }
   const r = WV.cv.getBoundingClientRect(); onArenaTap((e.clientX - r.left) / WV.px + (RT.cam ? RT.cam.x : 0), (e.clientY - r.top) / WV.px + (RT.cam ? RT.cam.y : 0));
 });
 
@@ -1586,7 +1587,7 @@ function drawScene(dt) {
     } else if (e.k === 'npc') {
       list.push({ y: e.y, f: () => { const sp = npcSprite(e.id); ell(x, e.x, e.y, 5, 1, SH); drawSpr(x, sp, e.x, e.y + Math.sin(T * 2 + e.ph) * 0.5, 1, Math.sin(T * 0.3 + e.ph) > 0.4, 0); } });
       lbl(e.x, e.y - 21, nm(e.id === 'alda' ? 'Quartermaster|Intendantė|Интендант' : NPCS.find(n => n.id === e.id).n), '#ffe9a0', 10);
-      const jb = S.quest && e.id === 'alda' && S.quest.ch < 1 && stepProgress() && stepProgress().cur >= stepProgress().tot; if (jb) lbl(e.x, e.y - 33, '!', '#ffd35a', 16);
+      const jb = S.quest && e.id === 'alda' && CUR_CH() && stepProgress() && stepProgress().cur >= stepProgress().tot; if (jb) lbl(e.x, e.y - 33, '!', '#ffd35a', 16);
     } else if (e.k === 'node') {
       const n = e.n; const locked = S.lv[n.sk] < n.lv; const gath = act && act.type === 'gather' && act.id === e.id; const shake = gath && RT.g && RT.g.swing > 0 ? Math.round(Math.sin(T * 40)) : 0;
       list.push({ y: e.y, f: () => {
@@ -1618,7 +1619,7 @@ function drawScene(dt) {
   if (RT.view !== 'map') for (const o of NET.others.values()) { if (o.x === undefined) continue; list.push({ y: o.y, f: () => { const fr = o.mv ? 1 + (Math.floor(o.wt * 8) % 2) : 0; const sp = heroSpriteF(o.s || 'melee', fr); ell(x, o.x, o.y, 5, 1, SH); drawSpr(x, sp, o.x, o.y + (o.mv ? -Math.abs(Math.sin(o.wt * 16)) * 1 : Math.sin(T * 3 + o.wt) * 0.6), 1, o.face < 0, 0); if (o.p) drawPet(x, o.p, o.x - (o.face < 0 ? -9 : 9), o.y + 1, T + o.wt, o.face < 0); } }); lbl(o.x, o.y - 20, (o.g ? '[' + o.g + '] ' : '') + o.n + ' · ' + o.lv, '#8affb0', 9); if (titleText(o.t)) lbl(o.x, o.y - 27, titleText(o.t), '#e8c45a', 8); }
   // hero
   list.push({ y: h.y, f: () => {
-    if (S.pet) drawPet(x, S.pet, h.x - h.face * 10, h.y + 1, T, h.face < 0);
+    if (S.pet) drawPet(x, S.pet, h.x - h.face * 10, h.y + 1, T, h.face < 0, petStage(S.pet));
     const fr = h.moving ? 1 + (Math.floor(h.wt * 8) % 2) : 0; const sp = heroSpriteF(hq.style, fr); let ox = 0, oy = h.moving ? -Math.abs(Math.sin(h.wt * 16)) * 1.2 : Math.sin(T * 3) * 0.7; const dir = h.face;
     const sw = (F && F.swing > 0 && act && act.type === 'fight');
     if (sw) ox = 4 * Math.sin(F.swing / 0.25 * Math.PI) * dir;
@@ -1663,29 +1664,30 @@ function drawLabels() {
   }
 }
 function drawWorld(dt) {
-  if (!S || !WV.W) return; RT._dt = dt; if (RT.view === 'map' || RT.travel) { if (RT.cam) { RT.cam.x = 0; RT.cam.y = 0; RT.cam.init = 0; } drawMap(dt); } else drawScene(dt);
+  if (!S || !WV.W) return; RT._dt = dt; if (RT.view === 'map' || RT.travel) { drawMap(dt); } else { if (RT.mcam) RT.mcam.last = ''; drawScene(dt); }
   drawLabels();
 }
 
 'use strict';
 /* ===== MAP: world map view, fog of war, walking-token travel ===== */
 let MAPBG = null;
-const BIO = { town: '#86a850', meadow: '#9ab84e', woods: '#3f6a30', quarry: '#8e8a80', lake: '#86a850', mire: '#40604c', ash: '#5c4c46', frost: '#d6e4f0' };
+const BIO = { sand: '#dcc886', town: '#86a850', meadow: '#9ab84e', woods: '#3f6a30', quarry: '#8e8a80', lake: '#86a850', mire: '#40604c', ash: '#5c4c46', frost: '#d6e4f0' };
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
 function mkNoise(seed) { const rg = mulberry(seed), N = 64, g = new Float32Array(N * N); for (let i = 0; i < N * N; i++) g[i] = rg(); return (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy); const a = g[(yi & 63) * N + (xi & 63)], b = g[(yi & 63) * N + ((xi + 1) & 63)], c = g[((yi + 1) & 63) * N + (xi & 63)], d = g[((yi + 1) & 63) * N + ((xi + 1) & 63)]; return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy; }; }
 const MAP_PAD = 14;
-function mp(loc) { return { x: Math.round(LOCS[loc].x * WV.W), y: Math.round(MAP_PAD + LOCS[loc].y * (WV.H - MAP_PAD * 2)) }; }
+const MWF = 3;
+function mapW() { return Math.round(WV.W * MWF); } function mapH() { return Math.round(WV.H * MWF); }
+function mp(loc) { return { x: Math.round(LOCS[loc].x * mapW()), y: Math.round(LOCS[loc].y * mapH()) }; }
 function seen(loc) { return !!S.disc[loc] || NEIGH[loc].some(n => S.disc[n]); }
 function buildMapBg(W, Hh) {
   const c = document.createElement('canvas'); c.width = W; c.height = Hh; const x = c.getContext('2d'); const img = x.createImageData(W, Hh), d = img.data; const n1 = mkNoise(11), n2 = mkNoise(23), n3 = mkNoise(5);
-  const locs = LOC_IDS.map(k => ({ k, p: mp(k), col: hexRgb(BIO[LOCS[k].sc]), sc: LOCS[k].sc })); const R = Math.min(W, Hh) * 0.30; const wpts = [];
+  const locs = LOC_IDS.map(k => ({ k, p: mp(k), col: hexRgb(BIO[LOCS[k].sc]), sc: LOCS[k].sc })); const R = Math.min(WV.W, WV.H) * 0.55; const wpts = [];
   for (let py = 0; py < Hh; py++) for (let px = 0; px < W; px++) {
-    const dx = (px / W - 0.5) * 2, dy = (py / Hh - 0.5) * 2; const land = 1.15 - (dx * dx * 0.9 + dy * dy * 0.85) * 0.8 + (n1(px * 0.07, py * 0.07) - 0.5) * 0.6 + (n3(px * 0.2, py * 0.2) - 0.5) * 0.12;
+    const dx = (px / W - 0.5) * 2, dy = (py / Hh - 0.5) * 2; let best = null, bd = 1e9; for (const L of locs) { const q = Math.hypot(px - L.p.x, py - L.p.y) + (n2(px * 0.1, py * 0.1) - 0.5) * 18; if (q < bd) { bd = q; best = L; } } let land = 1.5 - (dx * dx * 0.9 + dy * dy * 0.85) * 0.8 + (n1(px * 0.035, py * 0.035) - 0.5) * 0.6 + (n3(px * 0.2, py * 0.2) - 0.5) * 0.12; if (bd < R * 0.42) land = Math.max(land, 0.5);
     let r, g, b; const i = (py * W + px) * 4;
     if (land < 0.16) { const dpt = clamp((0.16 - land) * 3, 0, 1); r = 34 + (1 - dpt) * 24; g = 86 + (1 - dpt) * 30; b = 140 + (1 - dpt) * 30; if (((px >> 2) + (py >> 1)) % 11 === 0 && n2(px * 0.3, py * 0.3) > 0.6) { r += 40; g += 40; b += 40; } if (px % 8 === 0 && py % 8 === 0) wpts.push([px, py]); }
     else if (land < 0.24) { r = 224; g = 208; b = 150; }
     else {
-      let best = null, bd = 1e9; for (const L of locs) { const q = Math.hypot(px - L.p.x, py - L.p.y) + (n2(px * 0.1, py * 0.1) - 0.5) * 18; if (q < bd) { bd = q; best = L; } }
       const base = [118, 156, 74]; let t = clamp(1 - (bd - R * 0.45) / (R * 0.55), 0, 1); const col = best.col; r = base[0] + (col[0] - base[0]) * t; g = base[1] + (col[1] - base[1]) * t; b = base[2] + (col[2] - base[2]) * t;
       if (best.sc === 'lake' && bd < R * 0.5) { r = 56; g = 128; b = 190; if (bd > R * 0.42) { r = 224; g = 208; b = 150; } if (px % 8 === 0 && py % 8 === 0) wpts.push([px, py]); }
       const nz = (n3(px * 0.35, py * 0.35) - 0.5) * 22; r += nz; g += nz; b += nz;
@@ -1695,12 +1697,12 @@ function buildMapBg(W, Hh) {
   x.putImageData(img, 0, 0);
   // decor
   const rg = mulberry(99); const dec = (px, py, sc) => {
-    if (sc === 'woods' || sc === 'town' || sc === 'meadow') { if (sc === 'meadow') { x.fillStyle = '#d8c060'; x.fillRect(px, py, 3, 2); x.fillStyle = '#b09838'; x.fillRect(px, py + 2, 3, 1); } else { disc(x, px, py - 3, 3, '#2f5a26'); disc(x, px - 1, py - 4, 2, '#3f7a30'); x.fillStyle = '#4a2e18'; x.fillRect(px, py, 1, 2); } }
+    if (sc === 'sand') { x.fillStyle = '#b89a5a'; x.fillRect(px - 3, py, 7, 1); x.fillStyle = '#e8d8a0'; x.fillRect(px - 2, py - 1, 5, 1); } else if (sc === 'woods' || sc === 'town' || sc === 'meadow') { if (sc === 'meadow') { x.fillStyle = '#d8c060'; x.fillRect(px, py, 3, 2); x.fillStyle = '#b09838'; x.fillRect(px, py + 2, 3, 1); } else { disc(x, px, py - 3, 3, '#2f5a26'); disc(x, px - 1, py - 4, 2, '#3f7a30'); x.fillStyle = '#4a2e18'; x.fillRect(px, py, 1, 2); } }
     else if (sc === 'quarry' || sc === 'ash') { x.fillStyle = sc === 'ash' ? '#3a2e2a' : '#6a665f'; for (let i = 0; i < 6; i++) x.fillRect(px - 4 + Math.floor(i / 2), py - i, 8 - Math.floor(i / 2) * 2, 1); x.fillStyle = sc === 'ash' ? '#8a4a2a' : '#c0bcb0'; x.fillRect(px - 1, py - 5, 2, 2); }
     else if (sc === 'frost') { x.fillStyle = '#fff'; x.fillRect(px, py - 4, 1, 5); x.fillRect(px - 2, py - 2, 5, 1); x.fillRect(px - 1, py - 3, 3, 1); }
     else if (sc === 'mire') { x.fillStyle = '#1e3a30'; x.fillRect(px - 2, py, 5, 2); x.fillStyle = '#4a7a5a'; x.fillRect(px, py - 3, 1, 3); }
   };
-  for (let i = 0; i < 260; i++) { const px = Math.floor(rg() * W), py = Math.floor(rg() * Hh); const idx = (py * W + px) * 4; if (d[idx + 2] > 120 && d[idx] < 100) continue; if (d[idx] > 215 && d[idx + 2] < 160) continue; let best = null, bd = 1e9; for (const L of locs) { const q = Math.hypot(px - L.p.x, py - L.p.y); if (q < bd) { bd = q; best = L; } } if (bd < 10 || bd > R * 0.9) continue; if (best.sc === 'lake' && bd < R * 0.55) continue; dec(px, py, best.sc); }
+  for (let i = 0, nd = Math.round(260 * (W * Hh) / (WV.W * WV.H)); i < nd; i++) { const px = Math.floor(rg() * W), py = Math.floor(rg() * Hh); const idx = (py * W + px) * 4; if (d[idx + 2] > 120 && d[idx] < 100) continue; if (d[idx] > 215 && d[idx + 2] < 160) continue; let best = null, bd = 1e9; for (const L of locs) { const q = Math.hypot(px - L.p.x, py - L.p.y); if (q < bd) { bd = q; best = L; } } if (bd < 10 || bd > R * 0.9) continue; if (best.sc === 'lake' && bd < R * 0.55) continue; dec(px, py, best.sc); }
   c.wpts = wpts; return c;
 }
 /* curved roads */
@@ -1720,7 +1722,7 @@ function startTravel(to) {
   if (S.act) stopAct(); RT.cmd = null; RT.hero.tx = null; RT.hero.moving = false; UI.panel = null; UI.dirty = 1; RT.dirtyUI = true;
   const pts = []; let cum = 0, u = 0; const nodeD = [0];
   for (let i = 0; i < route.length - 1; i++) { const a = route[i], b = route[i + 1]; const key = [a, b].sort(); let cv = edgeCurve(key[0], key[1]); if (a !== key[0]) cv = cv.slice().reverse(); u += locDist(a, b); cv.forEach((p, j) => { if (pts.length) { if (j === 0) return; cum += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); } pts.push({ x: p.x, y: p.y, d: cum }); }); nodeD.push(cum); }
-  RT.travel = { route, from: S.loc, to, pts, len: cum, nodeD, t: 0, dur: 1.8 + u * 6, nextNode: 1, trail: [], tt: 0 }; RT.view = 'map'; RT.fade = 0.6; UI.mapSel = to; sfx('equip');
+  RT.travel = { route, from: S.loc, to, pts, len: cum, nodeD, t: 0, dur: 1.8 + u * 6, nextNode: 1, trail: [], tt: 0 }; RT.view = 'map'; RT.fade = 0.6; UI.mapSel = to; if (RT.mcam) RT.mcam.free = 0; sfx('equip');
 }
 function travelPos(T, d) { const p = T.pts; if (d <= 0) return { x: p[0].x, y: p[0].y, dir: 1 }; for (let i = 1; i < p.length; i++) if (p[i].d >= d) { const a = p[i - 1], b = p[i]; const k = (d - a.d) / ((b.d - a.d) || 1); return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, dir: b.x >= a.x ? 1 : -1 }; } const l = p[p.length - 1]; return { x: l.x, y: l.y, dir: 1 }; }
 function updateTravel(dt) {
@@ -1749,15 +1751,26 @@ function drawNodeIcon(x, sc, cx, cy, lit) {
   else if (sc === 'lake') { x.fillStyle = '#3f8ccc'; ell(x, cx, cy, 4, 3, '#3f8ccc'); x.fillStyle = '#fff'; x.fillRect(cx - 2, cy - 1, 2, 1); x.fillRect(cx + 1, cy + 1, 2, 1); }
   else if (sc === 'mire') { ell(x, cx, cy + 1, 4, 2, '#1e3a44'); x.fillStyle = '#9affd8'; x.fillRect(cx - 1, cy - 3, 1, 3); x.fillRect(cx + 2, cy - 2, 1, 2); x.fillRect(cx - 3, cy - 1, 1, 1); }
   else if (sc === 'ash') { x.fillStyle = '#2e2420'; for (let i = 0; i < 6; i++) x.fillRect(cx - Math.floor((2 + i) / 2), cy - 4 + i, 2 + i, 1); x.fillStyle = '#ff7a1a'; x.fillRect(cx - 1, cy - 4, 2, 1); x.fillRect(cx, cy - 5, 1, 1); }
+  else if (sc === 'sand') { x.fillStyle = '#c8a050'; for (let i = 0; i < 4; i++) x.fillRect(cx - 4 + i, cy + 1 - i, 8 - i * 2, 1); x.fillStyle = '#ffe070'; disc(x, cx + 2, cy - 2, 2, '#ffe070'); }
   else if (sc === 'frost') { x.fillStyle = '#e8f6ff'; x.fillRect(cx, cy - 4, 1, 8); x.fillRect(cx - 4, cy, 9, 1); x.fillRect(cx - 2, cy - 2, 5, 1); x.fillRect(cx - 2, cy + 2, 5, 1); x.fillStyle = '#7ad8ff'; x.fillRect(cx - 1, cy - 1, 3, 3); }
 }
 function drawSkull(x, cx, cy) { x.fillStyle = '#3a0a0a'; x.fillRect(cx - 3, cy - 3, 7, 6); x.fillStyle = '#f4ecd8'; x.fillRect(cx - 2, cy - 2, 5, 4); x.fillRect(cx - 1, cy + 1, 3, 2); x.fillStyle = '#222'; x.fillRect(cx - 1, cy - 1, 1, 1); x.fillRect(cx + 1, cy - 1, 1, 1); }
+function mapCam(dt, MW, MH) {
+  const cam = RT.mcam || (RT.mcam = { x: 0, y: 0, free: 0, last: '' }); const W = WV.W, Hh = WV.H;
+  let tx = cam.x, ty = cam.y;
+  if (cam.last !== 'map') { const c = RT.travel && RT.travel.pos ? RT.travel.pos : mp(S.loc); cam.x = clamp(c.x - W / 2, 0, Math.max(0, MW - W)); cam.y = clamp(c.y - Hh / 2, 0, Math.max(0, MH - Hh)); cam.free = 0; tx = cam.x; ty = cam.y; }
+  cam.last = 'map';
+  if (RT.travel && RT.travel.pos && !cam.free) { tx = RT.travel.pos.x - W / 2; ty = RT.travel.pos.y - Hh / 2; const k = Math.min(1, dt * 5); cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k; }
+  cam.x = clamp(cam.x, 0, Math.max(0, MW - W)); cam.y = clamp(cam.y, 0, Math.max(0, MH - Hh)); cam.x = Math.round(cam.x * 4) / 4; cam.y = Math.round(cam.y * 4) / 4;
+  if (!RT.cam) RT.cam = { x: 0, y: 0, init: 0 }; RT.cam.x = cam.x; RT.cam.y = cam.y; RT.cam.init = 0; return cam;
+}
 function drawMap(dt) {
   const x = WV.x, W = WV.W, Hh = WV.H; x.imageSmoothingEnabled = false; const T = RT.t; LB.length = 0;
-  if (!MAPBG || MAPBG.width !== W || MAPBG.height !== Hh) MAPBG = buildMapBg(W, Hh);
+  const MW = mapW(), MH = mapH(); if (!MAPBG || MAPBG.width !== MW || MAPBG.height !== MH) MAPBG = buildMapBg(MW, MH);
+  const cam = mapCam(dt, MW, MH); x.save(); x.translate(-cam.x, -cam.y);
   x.drawImage(MAPBG, 0, 0);
   // water shimmer
-  x.fillStyle = 'rgba(255,255,255,.5)'; MAPBG.wpts.forEach((p, i) => { const a = Math.sin(T * 1.5 + i * 1.7); if (a > 0.55) x.fillRect(p[0] + Math.round(a * 2), p[1], 3, 1); });
+  x.fillStyle = 'rgba(255,255,255,.5)'; MAPBG.wpts.forEach((p, i) => { if (p[0] < cam.x - 4 || p[0] > cam.x + W + 4 || p[1] < cam.y - 4 || p[1] > cam.y + Hh + 4) return; const a = Math.sin(T * 1.5 + i * 1.7); if (a > 0.55) x.fillRect(p[0] + Math.round(a * 2), p[1], 3, 1); });
   // roads
   EDGES.forEach(e => {
     const a = e[0], b = e[1]; const sa = seen(a), sb = seen(b); const da = !!S.disc[a], db = !!S.disc[b]; if (!((da && sb) || (db && sa))) return; const both = da && db; const cv = edgeCurve(a, b); let acc = 0;
@@ -1788,10 +1801,19 @@ function drawMap(dt) {
     for (let i = 0; i < nP; i++) { const ox = (rg() - 0.5) * (a > 0.8 ? 46 : 30), oy = (rg() - 0.5) * (a > 0.8 ? 38 : 24), r = 6 + Math.floor(rg() * 7), ph = rg() * 6; const dx = Math.sin(T * 0.5 + ph) * 3, dy = Math.cos(T * 0.37 + ph) * 1.5; x.globalAlpha = Math.min(1, a * (a > 0.8 ? 1 : 0.8)); disc(x, Math.round(p.x + ox + dx + 1), Math.round(p.y + oy + dy + 2), r, '#9fb0c4'); disc(x, Math.round(p.x + ox + dx), Math.round(p.y + oy + dy), r, '#dbe4ee'); disc(x, Math.round(p.x + ox + dx - 1), Math.round(p.y + oy + dy - 2), Math.max(2, r - 3), '#f2f6fa'); }
     x.globalAlpha = 1;
   });
+  x.restore();
   // title ribbon
-  if (trav) LB.push({ banner: 1, txt: tr('traveling', nm(LOCS[trav.to].n)), y: Hh * 0.06 }); else LB.push({ x: W / 2, y: 12, txt: tr('map_hint'), col: '#fff6dc', size: 12, o: { bold: 1 } });
+  if (trav) LB.push({ banner: 1, txt: tr('traveling', nm(LOCS[trav.to].n)), y: Hh * 0.06 }); else LB.push({ x: cam.x + W / 2, y: cam.y + Hh - 8, txt: tr('map_hint'), col: '#fff6dc', size: 12, o: { bold: 1 } });
   if (RT.fade > 0) { x.fillStyle = 'rgba(0,0,0,' + Math.min(1, RT.fade) + ')'; x.fillRect(0, 0, W, Hh); }
 }
+/* drag to pan the big map */
+(function () {
+  let st = null;
+  document.addEventListener('pointerdown', e => { if (!S || RT.view !== 'map' || UI.inTitle || !(e.target === WV.cv || e.target === WV.lab)) return; st = { x: e.clientX, y: e.clientY, cx: RT.mcam ? RT.mcam.x : 0, cy: RT.mcam ? RT.mcam.y : 0, moved: 0 }; });
+  document.addEventListener('pointermove', e => { if (!st || !RT.mcam) return; const dx = e.clientX - st.x, dy = e.clientY - st.y; if (!st.moved && Math.hypot(dx, dy) < 6) return; st.moved = 1; RT.mcam.free = 1; RT.mcam.x = st.cx - dx / WV.px; RT.mcam.y = st.cy - dy / WV.px; });
+  const up = () => { if (st && st.moved) { RT._swallow = 1; setTimeout(() => { RT._swallow = 0; }, 80); } st = null; };
+  document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+})();
 function mapTap(x, y) {
   if (RT.travel) return; let best = null, bd = 16; LOC_IDS.forEach(k => { const p = mp(k); const d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = k; } });
   if (!best) { UI.mapSel = null; UI.dirty = 1; return; } if (!seen(best)) { toast(tr('unexplored'), 'bad'); return; } UI.mapSel = best; UI.dirty = 1; sfx('equip');
@@ -1944,7 +1966,7 @@ function recipeRow(r) {
   return `<div class="rrow ${lockLv ? 'lock' : ''}">${itemIco(r.out, 'lg')}<div class="grow"><b>${nm(it.n)}${r.q > 1 ? ' ×' + r.q : ''}</b><div class="small muted">${sub}</div><div class="ings">${ing}</div></div><div class="rcol"><small class="${lockLv ? 'bad' : 'muted'}">${nm(SKILL_N[r.sk])} ${r.lv}</small>${stBtn('craft', r.id + ':1', tr('craft'), 'go', lockLv || max < 1)}${max > 1 ? stBtn('craft', r.id + ':' + Math.min(max, 10), '×' + Math.min(max, 10), 'sm', lockLv) : ''}</div></div>`;
 }
 function P_craft() {
-  if (S.loc !== 'town') return awayCard();
+  if (!isHub(S.loc)) return awayCard();
   let o = '<div class="subpills">' + STATIONS.map(s => `<button class="pill ${UI.craftSt === s.id ? 'on' : ''}" data-a="station" data-v="${s.id}">${ico(s.ico, 'xs')} ${nm(s.n)}</button>`).join('') + '</div>';
   o += `<label class="chk"><input type="checkbox" data-a="canmake" ${UI.canMake ? 'checked' : ''}> ${tr('can_make')}</label>`;
   let rs = RECIPES.filter(r => r.st === UI.craftSt); if (UI.canMake) rs = rs.filter(r => S.lv[r.sk] >= r.lv && canTake(r.in, 1));
@@ -1956,17 +1978,18 @@ function P_craft() {
 function npcName(id) { return id === 'alda' ? 'Quartermaster Alda|Intendantė Alda|Интендант Алда' : nm(NPCS.find(n => n.id === id).pn); }
 function jobText(j) { const k = j.k; const name = k === 'kill' ? nm(MONS[j.id].n) : iname(j.id); return tr('job_' + k, j.n, name); }
 function P_quests() {
-  if (S.loc !== 'town') return awayCard();
+  if (!isHub(S.loc)) return awayCard();
   const all = [{ id: 'alda', n: 'Quartermaster|Intendantė|Интендант', col: '#8a6a3a' }].concat(NPCS.filter(n => n.kind !== 'trade'));
   let o = '<div class="subpills">' + all.map(n => `<button class="pill ${UI.npc === n.id ? 'on' : ''}" data-a="npc" data-v="${n.id}"><i class="dot" style="background:${n.col}"></i> ${nm(n.n)}</button>`).join('') + '</div>';
   const npc = all.find(n => n.id === UI.npc) || all[0];
   o += `<div class="card"><div class="rowb"><b>${nm(npcName(npc.id).includes('|') ? npcName(npc.id) : npcName(npc.id))}</b></div><div class="small muted">${tr('npc_' + npc.id)}</div></div>`;
   if (npc.id === 'alda') {
-    if (S.quest.ch >= 1) o += `<div class="card ok"><b>${nm(CHAPTER1.n)}</b><div class="small">${tr('ch_done')}</div></div>`;
-    else {
-      const st = CHAPTER1.steps[S.quest.step]; const p = stepProgress(); const done = p.cur >= p.tot;
-      o += `<div class="card"><b>${nm(CHAPTER1.n)}</b><div class="small muted">${tr('ch_step', S.quest.step + 1, CHAPTER1.steps.length)}</div><p>${nm(st.d)}</p>${bar(p.cur / p.tot)}<div class="rowb small"><span>${p.cur}/${p.tot}</span>${stBtn('qstep', '', tr('claim'), 'go', !done)}</div><div class="rowb">${stBtn('autoq', 'ch', '▶ ' + tr('auto_go'), 'sm', done || !!RT.auto)}</div></div>`;
-      o += `<div class="small muted pad">${tr('reward')}: ${CHAPTER1.reward.coins} ${tr('coins')} · ${itemIco(CHAPTER1.reward.item, 'xs')} ${iname(CHAPTER1.reward.item)}</div>`;
+    for (let i = 0; i < (S.quest.ch || 0) && i < CHAPTERS.length; i++) o += `<div class="card ok"><b>${nm(CHAPTERS[i].n)}</b><div class="small">${tr('ch_done')}</div></div>`;
+    const CC = CUR_CH();
+    if (CC) {
+      const st = CC.steps[S.quest.step]; const p = stepProgress(); const done = p.cur >= p.tot;
+      o += `<div class="card"><b>${nm(CC.n)}</b><div class="small muted">${tr('ch_step', S.quest.step + 1, CC.steps.length)}</div><p>${nm(st.d)}</p>${bar(p.cur / p.tot)}<div class="rowb small"><span>${p.cur}/${p.tot}</span>${stBtn('qstep', '', tr('claim'), 'go', !done)}</div><div class="rowb">${stBtn('autoq', 'ch', '▶ ' + tr('auto_go'), 'sm', done || !!RT.auto)}</div></div>`;
+      o += `<div class="small muted pad">${tr('reward')}: ${fmt(CC.reward.coins)} ${tr('coins')} · ${itemIco(CC.reward.item, 'xs')} ${iname(CC.reward.item)}</div>`;
     }
   } else {
     const j = jobFor(npc); const p = jobProg(j);
@@ -1980,12 +2003,12 @@ function P_wiki() {
   return '<div class="wikig">' + WIKI.map(k => `<div class="wikic ${UI.wiki === k ? 'open' : ''}" data-a="wiki" data-v="${k}"><b>${tr('w_' + k)}</b><small>${tr('wiki_tag')}</small>${UI.wiki === k ? `<p>${tr('wt_' + k)}</p>` : ''}</div>`).join('') + '</div>';
 }
 /* hero */
-const SLOT_ICO = { weapon: ['sword', '#555'], shield: ['shield', '#555'], head: ['helm', '#555'], body: ['body', '#555'], legs: ['legs', '#555'], hands: ['gloves', '#555'], feet: ['boots', '#555'], ring: ['ring', '#555'] };
+const SLOT_ICO = { weapon: ['sword', '#555'], shield: ['shield', '#555'], head: ['helm', '#555'], body: ['body', '#555'], legs: ['legs', '#555'], hands: ['gloves', '#555'], feet: ['boots', '#555'], ring: ['ring', '#555'], amulet: ['gem', '#555'] };
 function P_gear() {
   let o = '<div class="gearbox"><div class="gcol">';
   ['head', 'body', 'legs', 'feet'].forEach(s => o += slotCell(s));
   o += `</div><div class="gmid"><img class="herobig pix" src="${heroUrl()}"><div class="small muted center">${tr('combat_lv')} ${combatLv()}</div></div><div class="gcol">`;
-  ['weapon', 'shield', 'hands', 'ring'].forEach(s => o += slotCell(s));
+  ['weapon', 'shield', 'hands', 'ring', 'amulet'].forEach(s => o += slotCell(s));
   o += '</div></div>';
   o += `<div class="sect">${tr('gear_sets')}</div><div class="card"><div class="small muted">${tr('sets_hint')}</div><div class="chips">` + S.sets.map((s, i) => `<span class="chip">${esc(s.name)} ${stBtn('setapply', i, tr('apply'), 'xs')} ${stBtn('setdel', i, '×', 'xs')}</span>`).join('') + `</div>${S.sets.length < 5 ? stBtn('setsave', '', '+ ' + tr('save_current'), 'sm') : ''}</div>`;
   o += `<div class="sect">${tr('gear_bank')}</div><div class="subpills">` + ['all'].concat(SLOTS).map(s => `<button class="pill ${UI.gSlot === s ? 'on' : ''}" data-a="gslot" data-v="${s}">${s === 'all' ? tr('all') : tr('slot_' + s)}</button>`).join('') + '</div>';
@@ -2072,7 +2095,7 @@ function P_ranks() {
 }
 /* market */
 function P_market() {
-  if (S.loc !== 'town') return awayCard();
+  if (!isHub(S.loc)) return awayCard();
   if (!marketOpen()) return `<div class="card"><b>${tr('market')}</b><p>${tr('market_locked', 20, totalLevel())}</p></div>`;
   let o = `<div class="card rowb"><b>${ico(['coin', '#e8c45a'], 'xs')} ${fmt(S.coins)}</b><small class="muted">${tr('trader_note')}</small></div>`;
   if (UI.tab.market === 'browse') o += SHOP.map(id => { const p = buyPrice(id); return `<div class="mrow">${itemIco(id, 'lg')}<div class="grow"><b>${iname(id)}</b><div class="small muted">${ITEMS[id].type === 'food' ? tr('st_heal', ITEMS[id].heal) + ' · ' : ''}${tr('in_bank')}: ${fmt(have(id))}</div></div><div class="rcol"><small class="gold">${fmt(p)}</small>${stBtn('buy', id + ':1', tr('buy'), 'go', S.coins < p)}${stBtn('buy', id + ':10', '×10', 'sm', S.coins < p * 10)}</div></div>`; }).join('');
@@ -2293,7 +2316,7 @@ function P_ranks() {
 /* ---------- player market ---------- */
 function mkLoad(force) { if (!NET.on || MM.mkBusy) return; if (MM.mk && !force && Date.now() - MM.mk.t < 15000) return; MM.mkBusy = 1; NET.rpc('eh_mkt', { p_token: NET.token }).then(r => { MM.mkBusy = 0; if (!r.err) { MM.mk = { t: Date.now(), list: r.list, payout: +r.payout || 0 }; RT.dirtyUI = true; } }).catch(() => { MM.mkBusy = 0; MM.mk = MM.mk || { t: Date.now(), list: [], payout: 0 }; }); }
 function P_pmarket() {
-  if (!NET.on) return offCard(); if (S.loc !== 'town') return awayCard(); mkLoad();
+  if (!NET.on) return offCard(); if (!isHub(S.loc)) return awayCard(); mkLoad();
   const ids = Object.keys(S.bank).filter(k => ITEMS[k] && S.bank[k] > 0); if (!ids.includes(UI.f.pmItem)) UI.f.pmItem = ids[0] || '';
   let o = `<div class="card"><div class="rowb"><b>${tr('pm_title')}</b><b>${ico(['coin', '#e8c45a'], 'xs')} ${fmt(S.coins)}</b></div><div class="small muted">${tr('pm_hint')}</div></div>`;
   if (!MM.mk) return o + `<div class="muted pad">${tr('loading')}</div>`;
@@ -2447,7 +2470,7 @@ heroDeath = function (F) { if (S.act && S.act.dung) { S.stats.deaths++; sfx('dea
 function P_dungeon() {
   const left = dungLeft(); let o = `<div class="card"><b>🗝 ${tr('dg_title')}</b><div class="small muted">${tr('dg_hint')}</div><div class="small">${tr('dg_left', left)}</div></div>`;
   if (S.act && S.act.dung) o += `<div class="card rowb"><b>${tr('dg_of', nm(LOCS[S.act.dung].n))}</b><span class="chip on">${tr('dg_room', Math.min(5, S.act.room || 1))}</span></div>`;
-  return o + LOC_IDS.filter(l => l !== 'town' && dungMons(l).length).map(l => { const bl = dungBlock(l), seen = S.disc[l]; return `<div class="mrow ${bl || !seen ? 'lock' : ''}"><div class="grow"><b>${seen ? nm(LOCS[l].n) : '???'}</b> <small class="muted">${tr('lv')} ${dungLv(l)}</small><div class="small muted">${seen ? dungMons(l).map(id => nm(MONS[id].n)).join(', ') : ''}</div></div>${!seen ? '<span class="chip">🔒</span>' : bl ? `<span class="chip bad">🔒 ${tr('lv')} ${dungLv(l) - 5}</span>` : stBtn('dung', l, tr('dg_enter'), 'go', left < 1 || !!(S.act && S.act.dung))}</div>`; }).join('');
+  return o + LOC_IDS.filter(l => !isHub(l) && dungMons(l).length).map(l => { const bl = dungBlock(l), seen = S.disc[l]; return `<div class="mrow ${bl || !seen ? 'lock' : ''}"><div class="grow"><b>${seen ? nm(LOCS[l].n) : '???'}</b> <small class="muted">${tr('lv')} ${dungLv(l)}</small><div class="small muted">${seen ? dungMons(l).map(id => nm(MONS[id].n)).join(', ') : ''}</div></div>${!seen ? '<span class="chip">🔒</span>' : bl ? `<span class="chip bad">🔒 ${tr('lv')} ${dungLv(l) - 5}</span>` : stBtn('dung', l, tr('dg_enter'), 'go', left < 1 || !!(S.act && S.act.dung))}</div>`; }).join('');
 }
 
 /* ---------- pets ---------- */
@@ -2687,7 +2710,7 @@ function autoPlan(k, id, need, d) {
 }
 function autoGoal(src) {
   if (src === 'ch') {
-    if (S.quest.ch >= 1) return null; const st = CHAPTER1.steps[S.quest.step], p = stepProgress(); if (!st || !p) return null;
+    const CC = CUR_CH(); if (!CC) return null; const st = CC.steps[S.quest.step], p = stepProgress(); if (!st || !p) return null;
     if (p.cur >= p.tot) return { done: 1 };
     if (st.k === 'multi') { for (const id in st.ids) { const c = Math.min(st.ids[id], counterOf('gather', id) - baseOf('gather', id)); if (c < st.ids[id]) return { k: 'gather', id, need: st.ids[id] - c }; } return { done: 1 }; }
     return { k: st.k, id: st.id, need: p.tot - p.cur };
@@ -2696,7 +2719,7 @@ function autoGoal(src) {
   return p >= j.n ? { done: 1 } : { k: j.k, id: j.id, need: j.n - p };
 }
 function autoText(A) {
-  if (A.src === 'ch') { const st = CHAPTER1.steps[S.quest.step], p = stepProgress(); return st && p ? `${nm(st.d)} <span class="gold">${p.cur}/${p.tot}</span>` : ''; }
+  if (A.src === 'ch') { const CC = CUR_CH(), st = CC && CC.steps[S.quest.step], p = stepProgress(); return st && p ? `${nm(st.d)} <span class="gold">${p.cur}/${p.tot}</span>` : ''; }
   const npc = NPCS.find(n => n.id === A.src); if (!npc) return ''; const j = jobFor(npc); return `${jobText(j)} <span class="gold">${jobProg(j)}/${j.n}</span>`;
 }
 function autoHtml() { const A = RT.auto; return A ? `<div class="goal auto">🧭 ${tr('auto_on', autoText(A))} <button class="btn xs danger" data-a="autostop">■ ${tr('auto_stop')}</button></div>` : ''; }
@@ -2728,11 +2751,307 @@ function autoArrive(cmd) {
   if (cmd.k === 'station') { const c = A.craft; if (!c) return; const n = craft(c.r, c.runs); if (!n) { autoStop(tr('cant_craft')); return; } toast(tr('auto_crafted', n * c.r.q) + ' ' + iname(c.r.out), 'ok'); A.craft = null; return; }
   if (cmd.k === 'npc') {
     const g = autoGoal(A.src); if (!g || !g.done) return;
-    if (A.src === 'ch') { advanceStep(); toast(tr('step_done'), 'ok'); if (S.quest.ch >= 1) autoStop(tr('auto_chapter_done'), false); }
+    if (A.src === 'ch') { const c0 = S.quest.ch || 0; advanceStep(); toast(tr('step_done'), 'ok'); if ((S.quest.ch || 0) > c0) autoStop(tr('auto_chapter_done'), false); }
     else { const npc = NPCS.find(n => n.id === A.src); claimJob(npc); toast(tr('job_claimed'), 'ok'); autoStop(tr('auto_job_done'), false); }
   }
 }
 Object.assign(ACT, { autoq(v) { autoStart(v || 'ch'); }, autostop() { if (RT.auto) { stopAct(); autoStop(); } } });
+
+'use strict';
+/* ===== WORLD2: giant world map, new cities & zones, adamant/runic tiers, amulets, chapters II-V, pet evolution ===== */
+
+/* ---------- i18n ---------- */
+D('map_hint', 'Drag to explore · tap a place', 'Tempk žemėlapį · palieskite vietą', 'Тяни карту · нажми на место');
+D('slot_amulet', 'Amulet', 'Amuletas', 'Амулет');
+D('pt_evolve', 'Evolve', 'Evoliucionuoti', 'Эволюция'); D('pt_stage', 'Stage {0}', '{0} pakopa', 'Стадия {0}');
+D('pt_evolved', 'Your pet evolved!', 'Tavo augintinis evoliucionavo!', 'Питомец эволюционировал!');
+D('pt_evo_need', 'Needs', 'Reikia', 'Нужно'); D('pt_max', 'Max stage', 'Aukščiausia pakopa', 'Макс. стадия');
+D('pt_evo_hint', 'Evolved pets grow bigger and give much stronger bonuses.', 'Evoliucionavę augintiniai auga ir duoda daug stipresnius bonusus.', 'Эволюционировавшие питомцы растут и дают куда больше бонусов.');
+D('pt_evo_fail', 'Not enough materials or coins.', 'Nepakanka medžiagų ar monetų.', 'Не хватает материалов или монет.');
+
+/* ---------- helpers ---------- */
+function isHub(l) { return !!(LOCS[l] && LOCS[l].hub); }
+function recol(base, over, crown) { const b = SPR_DEF[base]; return { p: Object.assign({}, b.p, over), g: crown ? crown.concat(b.g) : b.g }; }
+function defSpr(id, base, over, crown) { SPR_DEF[id] = recol(base, over, crown); SPR[id] = mkSprite(SPR_DEF[id].g, SPR_DEF[id].p); }
+
+/* ---------- new material tiers: adamant & runic ---------- */
+const T5 = [
+  { id: 'adamant', c: '#4fae7a', base: 60, en: 'Adamant', lt: { m: 'Adamantinis', f: 'Adamantinė', pm: 'Adamantiniai', pf: 'Adamantinės' }, ru: { m: 'Адамантовый', f: 'Адамантовая', p: 'Адамантовые' }, pow: 20, def: 20, ammo: 15, xp: 110 },
+  { id: 'runic', c: '#4ad8e8', base: 75, en: 'Runic', lt: { m: 'Runinis', f: 'Runinė', pm: 'Runiniai', pf: 'Runinės' }, ru: { m: 'Рунный', f: 'Рунная', p: 'Рунные' }, pow: 28, def: 28, ammo: 20, xp: 160 }
+];
+const W5 = [
+  { id: 'elder', c: '#c8a8e8', base: 60, en: 'Elder', lt: 'Šeivamedžio', ruM: 'Бузинный', ruP: 'Бузинные', tree: 'Elder Tree|Šeivamedis|Бузина', pow: 20, xp: 110 },
+  { id: 'ancient', c: '#7ad8c0', base: 75, en: 'Ancient', lt: 'Senovės', ruM: 'Древний', ruP: 'Древние', tree: 'Ancient Tree|Senovės medis|Древнее дерево', pow: 28, xp: 160 }
+];
+const C5 = { id: 'void', c: '#9a4aff', base: 60, en: 'Voidweave', lt: { m: 'Tuštumos', f: 'Tuštumos', pm: 'Tuštumos', pf: 'Tuštumos' }, ru: { m: 'Бездны', f: 'Бездны', p: 'Бездны' }, def: 11, mag: 11, xp: 110 };
+I('adamore', 'Adamantite Ore|Adamantito rūda|Адамантовая руда', ['ore', '#4fae7a'], 80);
+I('runeore', 'Runite Ore|Runito rūda|Рунная руда', ['ore', '#4ad8e8'], 160);
+I('drakescale', 'Drake Scale|Drakono žvynas|Чешуя дрейка', ['gem', '#e0602a'], 150);
+I('voidshard', 'Void Shard|Tuštumos šukė|Осколок Бездны', ['gem', '#9a4aff'], 300);
+I('voidsilk', 'Void Silk|Tuštumos šilkas|Шёлк Бездны', ['cloth', '#9a4aff'], 90);
+I('aloe', 'Desert Aloe|Dykumos alavijas|Пустынное алоэ', ['leaf', '#9ad870'], 30);
+I('voidbloom', 'Voidbloom|Tuštumos žiedas|Цветок Бездны', ['leaf', '#b04aff'], 70);
+I('rtuna', 'Raw Tuna|Žalias tunas|Сырой тунец', ['fish', '#c85a6a'], 60);
+F('tuna', 'Tuna|Tunas|Тунец', ['fish', '#e87a8a'], 280, 110);
+F('draught4', 'Mighty Draught|Galingasis eliksyras|Могучий отвар', ['potion', '#ff5ad8'], 520, 240);
+R('r_tuna', 'cook', 'cooking', 55, 120, { rtuna: 1 }, 'tuna');
+R('r_draught4', 'alch', 'alchemy', 60, 220, { voidbloom: 2, essence: 2, relic: 2 }, 'draught4');
+const BIN5 = [{ adamore: 1, coal: 4 }, { runeore: 1, coal: 5 }];
+T5.forEach((t, j) => {
+  MT.push(t); TI[t.id] = 4 + j;
+  I('bar_' + t.id, tname(t, 'bar'), ['bar', t.c], 6 + t.base * 2);
+  I('arrow_' + t.id, tname(t, 'arrows'), ['arrow', t.c], 1 + Math.floor(t.base / 6), { type: 'ammo', pow: t.ammo });
+  R('r_bar_' + t.id, 'forge', 'smithing', t.base, t.xp, BIN5[j], 'bar_' + t.id, 1);
+  G('dagger_' + t.id, tname(t, 'dagger'), 'weapon', ['dagger', t.c], { style: 'melee', pow: Math.round(t.pow * 0.9) + 1, acc: 2, spd: 0.75, req: { melee: t.base }, val: 14 + t.base * 3 });
+  R('r_dagger_' + t.id, 'forge', 'smithing', t.base, t.xp * 1.6, { ['bar_' + t.id]: 1 }, 'dagger_' + t.id);
+  G('sword_' + t.id, tname(t, 'sword'), 'weapon', ['sword', t.c], { style: 'melee', pow: Math.round(t.pow * 1.5) + 1, acc: 1, spd: 1, req: { melee: t.base + 2 }, val: 26 + t.base * 5 });
+  R('r_sword_' + t.id, 'forge', 'smithing', t.base + 2, t.xp * 2.4, { ['bar_' + t.id]: 2 }, 'sword_' + t.id);
+  G('axe_' + t.id, tname(t, 'axe'), 'weapon', ['sword', t.c], { style: 'melee', pow: Math.round(t.pow * 1.9) + 1, acc: 0, spd: 1.3, req: { melee: t.base + 4 }, val: 40 + t.base * 6 });
+  R('r_axe_' + t.id, 'forge', 'smithing', t.base + 4, t.xp * 3.2, { ['bar_' + t.id]: 3 }, 'axe_' + t.id);
+  ARMOR.forEach(a => {
+    G(a[0] + '_' + t.id, tname(t, a[0]), a[1], [a[5], t.c], { def: Math.max(1, Math.round(t.def * a[2])), req: { defence: t.base }, val: 12 + a[3] * (6 + t.base * 2) });
+    R('r_' + a[0] + '_' + t.id, 'forge', 'smithing', t.base + a[4], t.xp * a[3] * 1.2, { ['bar_' + t.id]: a[3] }, a[0] + '_' + t.id);
+  });
+});
+W5.forEach((w, j) => {
+  I('log_' + w.id, wname(w, 'log'), ['log', w.c], 4 + w.base);
+  G('bow_' + w.id, wname(w, 'bow'), 'weapon', ['bow', w.c], { style: 'ranged', pow: w.pow + 1, acc: 2, spd: 1, req: { archery: w.base }, val: 20 + w.base * 4 });
+  R('r_bow_' + w.id, 'fletch', 'fletching', w.base, w.xp * 2, { ['log_' + w.id]: 2 }, 'bow_' + w.id);
+  G('staff_' + w.id, wname(w, 'staff'), 'weapon', ['staff', w.c], { style: 'magic', pow: w.pow + 1, acc: 1, spd: 1.05, req: { sorcery: w.base }, val: 20 + w.base * 4 });
+  R('r_staff_' + w.id, 'fletch', 'fletching', w.base, w.xp * 2, { ['log_' + w.id]: 2 }, 'staff_' + w.id);
+  R('r_arrow_' + T5[j].id, 'fletch', 'fletching', w.base + 1, w.xp * 1.4, { ['log_' + w.id]: 1, feather: 4, ['bar_' + T5[j].id]: 1 }, 'arrow_' + T5[j].id, 25);
+});
+{ const t = C5; I('cloth_void', 'Voidweave Cloth|Tuštumos audinys|Ткань Бездны', ['cloth', t.c], 8 + t.base);
+  R('r_cloth_void', 'loom', 'tailoring', t.base, t.xp, { voidsilk: 2 }, 'cloth_void');
+  [['hood', 'head', 0.7, 1, 1, 'helm'], ['sandals', 'feet', 0.5, 1, 1, 'boots'], ['trousers', 'legs', 1.2, 2, 2, 'legs'], ['robe', 'body', 1.8, 3, 3, 'body']].forEach(a => {
+    G(a[0] + '_void', tname(t, a[0]), a[1], [a[5], t.c], { def: Math.max(1, Math.round(t.def * a[2])), mag: Math.round(t.mag * a[2]), req: { defence: t.base - 5 }, val: 10 + a[3] * (6 + t.base * 2) });
+    R('r_' + a[0] + '_void', 'loom', 'tailoring', t.base + a[4], t.xp * a[3] * 1.3, { cloth_void: a[3] }, a[0] + '_void');
+  });
+}
+/* art for the new tiers */
+[['sword', 'sword_purple', 'sword_blue'], ['axe', 'axe_purple', 'axe_blue'], ['dagger', 'sword_red', 'sword_red'], ['helm', 'helm_horn', 'helm_horn'], ['body', 'armor_blue', 'armor_blue'], ['shield', 'shield_blue', 'shield_blue'], ['bar', 'bar_silver', 'bar_silver']].forEach(a => {
+  ART_TIER[a[0]].push([a[1], '#4fae7a', a[0] === 'bar' ? 0.6 : 0.5], [a[2], '#4ad8e8', a[0] === 'bar' ? 0.6 : 0.55]);
+});
+ART_WOOD.bow.elder = ['crossbow', '#c8a8e8', 0.4]; ART_WOOD.bow.ancient = ['crossbow', '#4ad8e8', 0.45];
+ART_WOOD.staff.elder = ['staff_purple', '#c8a8e8', 0.3]; ART_WOOD.staff.ancient = ['staff_fire', '#4ad8e8', 0.5];
+ART_CLOTH.void = ['hood_green', '#9a4aff', 0.55];
+Object.assign(ART_FIX, { aloe: ['herb', '#9ad870', 0.5], voidbloom: ['herb', '#b04aff', 0.55], rtuna: ['fish', '#c85a6a', 0.6], tuna: ['fish', '#e87a8a', 0.4], drakescale: ['shard_blue', '#e0602a', 0.6], voidshard: ['shard_blue', '#9a4aff', 0.6], draught4: ['pot_purple', '#ff5ad8', 0.4] });
+
+/* ---------- amulets (new slot) ---------- */
+SLOTS.push('amulet');
+const AMU = [
+  ['amu_bone', 'Bone Charm|Kaulų amuletas|Костяной амулет', '#e8e0cc', { hp: 12 }, 5, 40, { bones: 6, bar_bronze: 1 }],
+  ['amu_jade', 'Jade Amulet|Nefrito amuletas|Нефритовый амулет', '#5ac8a0', { hp: 22, acc: 3 }, 15, 90, { bar_iron: 1, essence: 2 }],
+  ['amu_fang', 'Fang Pendant|Iltų pakabukas|Кулон из клыка', '#fff0c0', { hp: 30, bpow: 4 }, 30, 200, { fang: 3, bar_steel: 1 }],
+  ['amu_frost', 'Frostheart Amulet|Šalčio širdies amuletas|Амулет ледяного сердца', '#7ad8ff', { hp: 45, def: 6, luck: 0.03 }, 45, 420, { relic: 2, bar_mithril: 1 }],
+  ['amu_ember', 'Emberheart Amulet|Žarijų širdies amuletas|Амулет пылающего сердца', '#ff7a3a', { hp: 60, bpow: 8, acc: 6 }, 58, 700, { core: 1, bar_mithril: 2 }],
+  ['amu_dragon', "Dragon's Eye|Drakono akis|Глаз дракона", '#e0602a', { hp: 90, bpow: 12, def: 10, luck: 0.05 }, 72, 1200, { drakescale: 3, bar_adamant: 1 }],
+  ['amu_void', 'Voidstar Amulet|Tuštumos žvaigždės amuletas|Амулет звезды Бездны', '#9a4aff', { hp: 140, bpow: 18, def: 16, luck: 0.08, acc: 10 }, 86, 2400, { voidshard: 2, bar_runic: 1 }]
+];
+AMU.forEach(a => {
+  G(a[0], a[1], 'amulet', ['gem', a[2]], Object.assign({ req: { defence: a[4] }, val: a[5] }, a[3]));
+  R('r_' + a[0], 'forge', 'smithing', a[4], 20 + a[4] * 6, a[6], a[0]);
+});
+
+/* ---------- new gather nodes ---------- */
+function addNode(sk, o) { o.sk = sk; NODES[sk].push(o); NODE_BY_ID[o.id] = o; }
+addNode('mining', { id: 'n_adam', n: 'Adamantite Vein|Adamantito gysla|Адамантовая жила', lv: 60, t: 14, xp: 110, out: 'adamore', k: 'rock', c: '#4fae7a' });
+addNode('mining', { id: 'n_rune', n: 'Runite Vein|Runito gysla|Рунная жила', lv: 75, t: 16, xp: 170, out: 'runeore', k: 'rock', c: '#4ad8e8' });
+W5.forEach(w => addNode('woodcutting', { id: 'n_' + w.id, n: w.tree, lv: w.base, t: 6 + Math.floor(w.base / 8), xp: w.xp, out: 'log_' + w.id, k: 'tree', c: w.c }));
+addNode('fishing', { id: 'n_tuna', n: 'Reef Shoal|Rifo būrys|Косяк у рифа', lv: 55, t: 13, xp: 100, out: 'rtuna', k: 'water', c: '#c85a6a' });
+addNode('foraging', { id: 'n_apple', n: 'Apple Tree|Obelis|Яблоня', lv: 5, t: 5, xp: 9, out: 'apple', k: 'bush', c: '#d63a2a' });
+addNode('foraging', { id: 'n_aloe', n: 'Aloe Patch|Alavijų lopinys|Заросли алоэ', lv: 35, t: 8, xp: 45, out: 'aloe', k: 'bush', c: '#9ad870' });
+addNode('foraging', { id: 'n_voidbloom', n: 'Voidbloom|Tuštumos žiedas|Цветок Бездны', lv: 70, t: 11, xp: 90, out: 'voidbloom', k: 'bush', c: '#b04aff' });
+
+/* ---------- new monsters ---------- */
+function mon(id, spr, n, lv, hp, mh, def, xp, coin, zone, drops, boss) {
+  MONS[id] = { n, lv, hp, mh, def, t: boss ? 2.6 : 2.3, xp, coin, zone, spr, drops }; if (boss) MONS[id].boss = true;
+}
+defSpr('yeti', 'golem', { g: '#eaf2fa', d: '#9ab4cc', l: '#ffffff', o: '#7ad8ff' });
+defSpr('icewolf', 'wolf', { g: '#b8d0e8', d: '#6a88a8', w: '#ffffff', e: '#7ad8ff' });
+defSpr('frost_giant', 'golem', { g: '#8ab0d8', d: '#3a5a8a', l: '#d8f0ff', o: '#ffffff' });
+defSpr('dwarf', 'goblin', { g: '#d8a070', d: '#8a5a3a', e: '#fff', c: '#7a7a82', t: '#4a4a52', w: '#e8e0c8' });
+defSpr('cave_bear', 'boar', { b: '#6a4a32', d: '#3a2818', w: '#e8dcc0', p: '#8a6a52' });
+defSpr('dwarf_king', 'orc', { g: '#d8a070', d: '#8a5a3a', r: '#e8c030', s: '#e8e8f0', t: '#6a4a2a' }, ['...y.yy.y....', '...yyyyyy....']); SPR_DEF.dwarf_king.p.y = '#ffd35a'; SPR.dwarf_king = mkSprite(SPR_DEF.dwarf_king.g, SPR_DEF.dwarf_king.p);
+defSpr('crab', 'spider', { b: '#d8502a', p: '#f08a4a', r: '#fff', l: '#8a2a14' });
+defSpr('siren', 'wisp', { a: '#ffd0f0', b: '#f08ad8', c: '#8a3a9a' });
+defSpr('kraken', 'spider', { b: '#2a5a8a', p: '#4a8ac8', r: '#ffe040', l: '#1a3a5a' });
+defSpr('scorpion', 'spider', { b: '#c8a040', p: '#e8c860', r: '#ff3a3a', l: '#7a5a20' });
+defSpr('mummy', 'skeleton', { w: '#e0d4b0', g: '#b8a880', r: '#8a3a3a', s: '#a08850' });
+defSpr('sand_pharaoh', 'skeleton', { w: '#e8c850', g: '#b08a20', r: '#2a6ad0', s: '#ffd35a', y: '#ffd35a' }, ['...y.yy.y....', '...yyyyyy....']);
+defSpr('bandit', 'goblin', { g: '#d0a888', d: '#6a4a30', e: '#222', c: '#5a3a22', t: '#3a2a1a', w: '#c8c0b0' });
+defSpr('werewolf', 'wolf', { g: '#5a4a40', d: '#2a1e18', w: '#a89888', e: '#ff4a3a' });
+defSpr('treant', 'golem', { g: '#6a4a2a', d: '#3a2810', l: '#4a8a30', o: '#c8f060' });
+defSpr('ancient_treant', 'golem', { g: '#4a6a2a', d: '#2a3a14', l: '#7ac040', o: '#ffe060' });
+defSpr('lava_imp', 'goblin', { g: '#e0502a', d: '#8a1a0a', e: '#ffe040', c: '#4a1a0a', t: '#2a0a04', w: '#ffa060' });
+defSpr('infernal', 'orc', { g: '#c03a22', d: '#6a1408', w: '#ffd8a0', r: '#ffb020', s: '#3a3a44', t: '#2a1008' });
+defSpr('demon_lord', 'orc', { g: '#7a1a22', d: '#3a0a10', r: '#ff8a20', s: '#2a2a34', w: '#ffd8a0', y: '#ffd35a', t: '#200608' }, ['...y.yy.y....', '...yyyyyy....']);
+defSpr('shade', 'wraith', { a: '#8a7aa8', b: '#4a3a6a', c: '#1e1630', k: '#d8b0ff', w: '#c8a0ff' });
+defSpr('voidling', 'wisp', { a: '#d8a0ff', b: '#8a3aff', c: '#3a1a8a', w: '#fff', k: '#1a0a3a' });
+defSpr('void_king', 'wraith', { a: '#6a3aff', b: '#3a1a8a', c: '#160a3a', k: '#ffffff', y: '#ff5ad8' }, ['..y.y.y.y...', '..yyyyyyy...']);
+mon('bandit', 'bandit', 'Road Bandit|Plėšikas|Разбойник', 16, 70, 10, 11, 80, [3, 9], 'orchard', [['arrow_bronze', 0.4, 5, 12], ['bar_bronze', 0.2, 1, 2], ['bones', 0.5, 1, 1], ['sword_bronze', 0.03, 1, 1], ['apple', 0.3, 1, 3]]);
+mon('crab', 'crab', 'Reef Crab|Rifo krabas|Рифовый краб', 22, 90, 14, 16, 120, [6, 16], 'reef', [['rshrimp', 0.6, 1, 3], ['rtrout', 0.3, 1, 2], ['bones', 0.5, 1, 1]]);
+mon('scorpion', 'scorpion', 'Dune Scorpion|Kopų skorpionas|Дюнный скорпион', 30, 140, 19, 24, 190, [10, 26], 'dunes', [['bones', 0.7, 1, 2], ['aloe', 0.5, 1, 3], ['fang', 0.2, 1, 1]]);
+mon('siren', 'siren', 'Reef Siren|Rifo sirena|Рифовая сирена', 38, 190, 24, 30, 280, [14, 34], 'reef', [['essence', 0.4, 1, 2], ['moonpetal', 0.4, 1, 3], ['rsalmon', 0.3, 1, 2]]);
+mon('mummy', 'mummy', 'Tomb Mummy|Kapo mumija|Мумия гробницы', 42, 260, 31, 36, 380, [18, 44], 'dunes', [['bones', 1, 1, 3], ['relic', 0.15, 1, 1], ['aloe', 0.4, 1, 3], ['cloth_silk', 0.1, 1, 2]]);
+mon('dwarf', 'dwarf', 'Rogue Dwarf|Maištaujantis nykštukas|Мятежный гном', 46, 300, 32, 38, 420, [20, 48], 'ironvein', [['ironore', 0.6, 2, 4], ['coal', 0.6, 2, 5], ['mithore', 0.2, 1, 2], ['axe_steel', 0.02, 1, 1]]);
+mon('werewolf', 'werewolf', 'Werewolf|Vilkolakis|Оборотень', 48, 340, 36, 42, 500, [22, 54], 'duskwood', [['fang', 0.7, 1, 2], ['bones', 1, 1, 2], ['moonpetal', 0.3, 1, 2]]);
+mon('cave_bear', 'cave_bear', 'Cave Bear|Urvinis lokys|Пещерный медведь', 52, 380, 38, 44, 560, [24, 58], 'ironvein', [['bones', 1, 1, 2], ['fang', 0.4, 1, 2], ['rsalmon', 0.3, 1, 2]]);
+mon('yeti', 'yeti', 'Snow Yeti|Sniego jetis|Снежный йети', 54, 400, 40, 46, 600, [26, 62], 'snowpeak', [['bones', 1, 1, 2], ['relic', 0.25, 1, 1], ['essence', 0.4, 1, 2], ['mithore', 0.2, 1, 2]]);
+mon('treant', 'treant', 'Duskwood Treant|Giros medžių milžinas|Древень сумеречного леса', 57, 520, 42, 52, 720, [30, 70], 'duskwood', [['log_yew', 0.5, 2, 5], ['log_elder', 0.3, 1, 3], ['moonpetal', 0.3, 1, 3], ['relic', 0.15, 1, 1]]);
+mon('icewolf', 'icewolf', 'Ice Wolf|Ledo vilkas|Ледяной волк', 62, 470, 46, 54, 820, [32, 76], 'snowpeak', [['fang', 0.6, 1, 2], ['relic', 0.2, 1, 1], ['mithore', 0.3, 1, 3]]);
+mon('lava_imp', 'lava_imp', 'Lava Imp|Lavos kauka|Лавовый бес', 90, 800, 68, 74, 1600, [60, 130], 'hellmaw', [['drakescale', 0.4, 1, 2], ['coal', 0.8, 4, 8], ['mithore', 0.5, 2, 4]]);
+mon('shade', 'shade', 'Void Shade|Tuštumos šešėlis|Тень Бездны', 92, 760, 66, 76, 1500, [60, 130], 'voidrift', [['voidshard', 0.35, 1, 2], ['voidsilk', 0.5, 1, 3], ['essence', 0.5, 2, 4]]);
+mon('infernal', 'infernal', 'Infernal Brute|Pragaro galvažudys|Инфернальный громила', 98, 1100, 84, 90, 2300, [80, 170], 'hellmaw', [['drakescale', 0.6, 1, 3], ['core', 0.4, 1, 2], ['adamore', 0.4, 1, 3]]);
+mon('voidling', 'voidling', 'Voidling|Tuštumos padaras|Дитя Бездны', 102, 1000, 82, 88, 2100, [80, 170], 'voidrift', [['voidshard', 0.5, 1, 3], ['voidsilk', 0.5, 1, 3], ['runeore', 0.2, 1, 2]]);
+mon('dwarf_king', 'dwarf_king', 'Dwarf King Barukk|Nykštukų karalius Barukas|Король гномов Барукк', 60, 3000, 54, 56, 2800, [500, 1000], 'ironvein', [['mithore', 1, 4, 8], ['core', 0.8, 1, 2], ['adamore', 0.5, 1, 2], ['axe_mithril', 0.1, 1, 1]], true);
+mon('kraken', 'kraken', 'The Kraken Ulgoth|Krakenas Ulgotas|Кракен Улгот', 52, 2300, 44, 46, 2200, [400, 800], 'reef', [['rsword', 1, 3, 6], ['rtuna', 1, 3, 6], ['relic', 0.5, 1, 2], ['essence', 1, 2, 4]], true);
+mon('sand_pharaoh', 'sand_pharaoh', 'Pharaoh Amenkar|Faraonas Amenkaras|Фараон Аменкар', 55, 3400, 56, 56, 3200, [600, 1200], 'dunes', [['relic', 1, 2, 4], ['core', 0.6, 1, 2], ['mithore', 1, 3, 6], ['amu_frost', 0.15, 1, 1]], true);
+mon('ancient_treant', 'ancient_treant', 'Elder Treant Oakenheart|Senasis medžių milžinas Ąžuolširdis|Древний древень Дубосерд', 64, 4000, 60, 64, 3700, [700, 1400], 'duskwood', [['log_elder', 1, 6, 12], ['log_ancient', 0.4, 2, 5], ['relic', 1, 2, 4], ['core', 0.7, 1, 2]], true);
+mon('frost_giant', 'frost_giant', 'Frost Giant Skirnir|Šalčio milžinas Skirnyras|Ледяной великан Скирнир', 72, 5200, 70, 70, 4800, [800, 1600], 'snowpeak', [['core', 1, 1, 3], ['relic', 1, 2, 4], ['mithore', 1, 4, 8], ['amu_frost', 0.25, 1, 1]], true);
+mon('demon_lord', 'demon_lord', 'Demon Lord Azgoroth|Demonų valdovas Azgorotas|Повелитель демонов Азгорот', 108, 9500, 108, 104, 9000, [2000, 4000], 'hellmaw', [['drakescale', 1, 4, 8], ['voidshard', 0.5, 1, 2], ['core', 1, 3, 6], ['runeore', 0.6, 1, 3], ['sword_adamant', 0.1, 1, 1], ['amu_dragon', 0.2, 1, 1]], true);
+mon('void_king', 'void_king', 'The Void King|Tuštumos karalius|Король Бездны', 120, 12000, 124, 116, 14000, [3000, 6000], 'voidrift', [['voidshard', 1, 4, 8], ['runeore', 0.8, 2, 5], ['core', 1, 4, 8], ['sword_runic', 0.1, 1, 1], ['amu_void', 0.15, 1, 1]], true);
+BOSS_ORDER.push('frost_giant', 'dwarf_king', 'kraken', 'sand_pharaoh', 'ancient_treant', 'demon_lord', 'void_king');
+['bandit', 'crab', 'scorpion', 'siren', 'mummy', 'dwarf', 'werewolf', 'cave_bear', 'yeti', 'treant', 'icewolf', 'lava_imp', 'shade', 'infernal', 'voidling'].forEach(k => MON_ORDER.push(k));
+MON_ORDER.sort((a, b) => MONS[a].lv - MONS[b].lv);
+
+/* ---------- the big world: remap old places to the middle, add new ones around ---------- */
+LOC_IDS.forEach(k => { const L = LOCS[k]; L.x = 0.30 + 0.40 * L.x; L.y = 0.32 + 0.36 * L.y; });
+const NEWLOCS = {
+  stonehold: { n: 'Stonehold|Akmeninė tvirtovė|Каменная цитадель', x: 0.50, y: 0.17, sc: 'town', hub: 1 },
+  snowpeak: { n: 'Snowpeak Pass|Sniego viršukalnės perėja|Перевал Снежной вершины', x: 0.26, y: 0.08, sc: 'frost', mons: ['yeti', 'icewolf'], boss: 'frost_giant' },
+  ironvein: { n: 'Ironvein Delve|Geležies gyslos kasyklos|Железные штольни', x: 0.74, y: 0.10, sc: 'quarry', mons: ['dwarf', 'cave_bear'], boss: 'dwarf_king', nodes: ['n_adam', 'n_rune'] },
+  orchard: { n: 'Applewick Orchard|Obuolių sodas|Яблоневый сад', x: 0.12, y: 0.27, sc: 'meadow', mons: ['bandit'], nodes: ['n_apple'] },
+  duskhaven: { n: 'Duskhaven|Sutemų prieglobstis|Сумеречный приют', x: 0.14, y: 0.64, sc: 'town', hub: 1 },
+  duskwood: { n: 'Duskwood|Sutemų giria|Сумеречный лес', x: 0.09, y: 0.82, sc: 'woods', mons: ['werewolf', 'treant'], boss: 'ancient_treant', nodes: ['n_elder', 'n_ancient'] },
+  saltport: { n: 'Saltport|Druskos uostas|Соляной порт', x: 0.89, y: 0.33, sc: 'town', hub: 1 },
+  saltreef: { n: 'Coral Reef|Koralų rifas|Коралловый риф', x: 0.93, y: 0.55, sc: 'lake', mons: ['crab', 'siren'], boss: 'kraken', nodes: ['n_tuna'] },
+  sandgate: { n: 'Sunscar Bazaar|Saulės randų turgus|Базар Солнечного шрама', x: 0.34, y: 0.88, sc: 'town', hub: 1 },
+  sandsea: { n: 'Scorched Dunes|Svilinamos kopos|Раскалённые дюны', x: 0.60, y: 0.93, sc: 'sand', mons: ['scorpion', 'mummy'], boss: 'sand_pharaoh', nodes: ['n_aloe'] },
+  hellmaw: { n: 'Hellmaw Caldera|Pragaro žiotys|Адская пасть', x: 0.90, y: 0.82, sc: 'ash', mons: ['lava_imp', 'infernal'], boss: 'demon_lord' },
+  voidrift: { n: 'The Void Rift|Tuštumos plyšys|Разлом Бездны', x: 0.12, y: 0.95, sc: 'frost', mons: ['shade', 'voidling'], boss: 'void_king', nodes: ['n_voidbloom'] }
+};
+Object.keys(NEWLOCS).forEach(k => { LOCS[k] = NEWLOCS[k]; LOC_IDS.push(k); NEIGH[k] = []; });
+[['quarry', 'stonehold'], ['stonehold', 'snowpeak'], ['stonehold', 'ironvein'], ['ironvein', 'ashfall'], ['mire', 'orchard'], ['oak', 'duskhaven'], ['ruins', 'duskhaven'], ['duskhaven', 'duskwood'], ['duskwood', 'voidrift'],
+  ['voidrift', 'sandgate'], ['frost', 'sandgate'], ['sandgate', 'sandsea'], ['sandsea', 'hellmaw'], ['spine', 'hellmaw'], ['lake', 'saltport'], ['saltport', 'saltreef'], ['ashfall', 'saltport']].forEach(e => { EDGES.push(e); NEIGH[e[0]].push(e[1]); NEIGH[e[1]].push(e[0]); });
+Object.keys(NEWLOCS).forEach(k => { const L = LOCS[k]; (L.mons || []).forEach(m => MON_LOC[m] = k); if (L.boss) MON_LOC[L.boss] = k; (L.nodes || []).forEach(n => NODE_LOC[n] = k); });
+function locDist(a, b) { return Math.hypot(LOCS[a].x - LOCS[b].x, LOCS[a].y - LOCS[b].y) * 2.5; }
+
+/* desert scene + palette */
+GPAL.sand = { a: '#d9c78a', b: '#e2d298', c: '#cdb97a', path: '#a98f5a', pathE: '#8a7040', tuft: '#c8b070', fl: [] };
+WATER.sand = ['#2f78b4', '#3f8ccc', '#a8d8ff'];
+SCENE_DEF.sand = function (sc, loc) {
+  sc.hub = [0.5, 0.6]; sc.spawn = [0.5, 0.82]; sc.bossSpot = [0.7, 0.27];
+  sc.nodeAt(LOCS[loc].nodes || [], [[0.26, 0.44], [0.74, 0.5], [0.34, 0.72]]);
+  sc.prop('obelisk', 0.82, 0.18); sc.prop('tent', 0.18, 0.26, '#c8a060'); sc.prop('bones', 0.5, 0.3);
+  sc.scatter('rock', 9, [0.04, 0.15, 0.96, 0.95], '#b8a070', true, 10); sc.scatter('bones', 6, [0.04, 0.3, 0.96, 0.95], null, null, 5); sc.scatter('dead', 6, [0.04, 0.15, 0.96, 0.9], null, null, 10);
+  sc.decals.push((x, s) => { x.fillStyle = '#c4af70'; for (let i = 0; i < 40; i++) { const a = s.rg() * s.W, b = s.rg() * s.H; x.fillRect(a, b, 4 + (i % 5), 1); } });
+};
+
+/* ---------- chapters II-V ---------- */
+const CHAPTERS = [CHAPTER1,
+  {
+    n: 'Chapter II: Beyond the Meadow|II skyrius: Už pievų|Глава II: За лугами',
+    steps: [
+      { d: 'Defeat 8 goblin scouts.|Nugalėk 8 goblinų žvalgus.|Победи 8 гоблинов-разведчиков.', k: 'kill', id: 'goblin', n: 8 },
+      { d: 'Chop 12 willow logs.|Nukirsk 12 gluosnio rąstų.|Нарубь 12 ивовых брёвен.', k: 'gather', id: 'log_willow', n: 12 },
+      { d: 'Smelt 3 iron bars.|Išlydyk 3 geležies luitus.|Выплавь 3 железных слитка.', k: 'craft', id: 'bar_iron', n: 3 },
+      { d: 'Cook 4 trout.|Išvirk 4 upėtakius.|Приготовь 4 форели.', k: 'craft', id: 'trout', n: 4 },
+      { d: 'Defeat 6 bog wisps.|Nugalėk 6 pelkių šmėklas.|Победи 6 болотных огоньков.', k: 'kill', id: 'wisp', n: 6 },
+      { d: 'Forge an iron sword.|Nukalk geležinį kardą.|Выкуй железный меч.', k: 'craft', id: 'sword_iron', n: 1 }
+    ], reward: { coins: 800, item: 'amu_jade', xp: { vitality: 300 } }
+  },
+  {
+    n: 'Chapter III: Ash and Iron|III skyrius: Pelenai ir geležis|Глава III: Пепел и железо',
+    steps: [
+      { d: 'Defeat 8 skeleton warriors.|Nugalėk 8 griaučių karius.|Победи 8 скелетов-воинов.', k: 'kill', id: 'skeleton', n: 8 },
+      { d: 'Mine 10 coal.|Iškask 10 anglies.|Добудь 10 угля.', k: 'gather', id: 'coal', n: 10 },
+      { d: 'Smelt 3 steel bars.|Išlydyk 3 plieno luitus.|Выплавь 3 стальных слитка.', k: 'craft', id: 'bar_steel', n: 3 },
+      { d: 'Brew 3 healing draughts.|Išvirk 3 gydomuosius eliksyrus.|Свари 3 целебных отвара.', k: 'craft', id: 'draught2', n: 3 },
+      { d: 'Defeat 6 dire wolves.|Nugalėk 6 baisiuosius vilkus.|Победи 6 лютых волков.', k: 'kill', id: 'wolf', n: 6 },
+      { d: 'Defeat 5 orc brutes.|Nugalėk 5 orkus galvažudžius.|Победи 5 орков-громил.', k: 'kill', id: 'orc', n: 5 }
+    ], reward: { coins: 3000, item: 'amu_fang', xp: { vitality: 900 } }
+  },
+  {
+    n: 'Chapter IV: The Frozen Frontier|IV skyrius: Sušalusi riba|Глава IV: Ледяной рубеж',
+    steps: [
+      { d: 'Defeat 6 frost wraiths.|Nugalėk 6 šalčio šmėklas.|Победи 6 ледяных призраков.', k: 'kill', id: 'wraith', n: 6 },
+      { d: 'Mine 6 mithril ore.|Iškask 6 mitrilo rūdos.|Добудь 6 мифриловой руды.', k: 'gather', id: 'mithore', n: 6 },
+      { d: 'Smelt 3 mithril bars.|Išlydyk 3 mitrilo luitus.|Выплавь 3 мифриловых слитка.', k: 'craft', id: 'bar_mithril', n: 3 },
+      { d: 'Forge a mithril sword.|Nukalk mitrilinį kardą.|Выкуй мифриловый меч.', k: 'craft', id: 'sword_mithril', n: 1 },
+      { d: 'Defeat 8 snow yetis.|Nugalėk 8 sniego ječius.|Победи 8 снежных йети.', k: 'kill', id: 'yeti', n: 8 },
+      { d: 'Defeat 6 ice wolves.|Nugalėk 6 ledo vilkus.|Победи 6 ледяных волков.', k: 'kill', id: 'icewolf', n: 6 }
+    ], reward: { coins: 12000, item: 'amu_frost', xp: { vitality: 2500 } }
+  },
+  {
+    n: 'Chapter V: Fire and Void|V skyrius: Ugnis ir tuštuma|Глава V: Огонь и Бездна',
+    steps: [
+      { d: 'Defeat 6 cinder drakes.|Nugalėk 6 žarijų drakonėlius.|Победи 6 пепельных дрейков.', k: 'kill', id: 'drake', n: 6 },
+      { d: 'Smelt 3 adamant bars.|Išlydyk 3 adamanto luitus.|Выплавь 3 адамантовых слитка.', k: 'craft', id: 'bar_adamant', n: 3 },
+      { d: 'Defeat 8 lava imps.|Nugalėk 8 lavos kaukas.|Победи 8 лавовых бесов.', k: 'kill', id: 'lava_imp', n: 8 },
+      { d: 'Forge an adamant sword.|Nukalk adamantinį kardą.|Выкуй адамантовый меч.', k: 'craft', id: 'sword_adamant', n: 1 },
+      { d: 'Defeat 6 void shades.|Nugalėk 6 tuštumos šešėlius.|Победи 6 теней Бездны.', k: 'kill', id: 'shade', n: 6 },
+      { d: 'Defeat 6 voidlings.|Nugalėk 6 tuštumos padarus.|Победи 6 детей Бездны.', k: 'kill', id: 'voidling', n: 6 }
+    ], reward: { coins: 60000, item: 'amu_dragon', xp: { vitality: 6000 } }
+  }
+];
+function CUR_CH() {
+  if (!S || !S.quest) return null; const c = S.quest.ch || 0;
+  if (c >= 1 && c <= CHAPTERS.length && S.quest.step >= CHAPTERS[c - 1].steps.length) S.quest.step = 0;
+  return CHAPTERS[c] || null;
+}
+
+/* ---------- pets: more pets + evolution ---------- */
+PETS.push({ id: 'drakeling', spr: 'drake', n: 'Drakeling|Drakonėlis|Дракончик', cost: 40000, b: { dmg: 10 } }, { id: 'voidcat', spr: 'shade', n: 'Void Cat|Tuštumos katė|Кот Бездны', cost: 90000, b: { luck: 8 } });
+PETS.forEach(p => PET_BY[p.id] = p);
+defSpr('p_rooster', 'chicken', { w: '#f0c040', g: '#b88a20', r: '#d6382a', y: '#e86a20' });
+defSpr('p_phoenix', 'chicken', { w: '#ff9a3a', g: '#d6382a', r: '#ffe040', y: '#ffd35a' });
+defSpr('p_wolf', 'wolf', { g: '#8a8a96', d: '#4a4a56', w: '#e8e8f0', e: '#ffd84a' });
+defSpr('p_fenrir', 'wolf', { g: '#b8d0e8', d: '#6a88a8', w: '#ffffff', e: '#7ad8ff' });
+defSpr('p_flame', 'wisp', { a: '#ffe0a0', b: '#ff9a3a', c: '#c04a1a' });
+defSpr('p_star', 'wisp', { a: '#ffffff', b: '#ffe060', c: '#e0a020' });
+defSpr('p_iron', 'golem', { g: '#a8b4c4', d: '#5a6a7a', l: '#e0e8f0', o: '#7ad8ff' });
+defSpr('p_magma', 'golem', { g: '#4a3a38', d: '#1a1210', l: '#8a4a2a', o: '#ff6a1a' });
+const EVO = {
+  chick: [{ spr: 'p_rooster', n: 'Golden Rooster|Auksinis gaidys|Золотой петух' }, { spr: 'p_phoenix', n: 'Phoenix|Fenisas|Феникс' }],
+  pup: [{ spr: 'p_wolf', n: 'Grey Wolf|Pilkasis vilkas|Серый волк' }, { spr: 'p_fenrir', n: 'Frost Fenrir|Ledo Fenriras|Ледяной Фенрир' }],
+  wisp: [{ spr: 'p_flame', n: 'Flame Wisp|Ugnies šmėkla|Пламенный огонёк' }, { spr: 'p_star', n: 'Star Spirit|Žvaigždžių dvasia|Дух звёзд' }],
+  pebble: [{ spr: 'p_iron', n: 'Iron Golem|Geležinis golemas|Железный голем' }, { spr: 'p_magma', n: 'Magma Titan|Magmos titanas|Магмовый титан' }],
+  drakeling: [{ n: 'Young Drake|Jaunasis drakonas|Молодой дракон' }, { n: 'Ancient Drake|Senovinis drakonas|Древний дракон' }],
+  voidcat: [{ n: 'Void Panther|Tuštumos pantera|Пантера Бездны' }, { n: 'Star Devourer|Žvaigždžių ryklys|Пожиратель звёзд' }]
+};
+const PET_MULT = [1, 1.8, 2.8];
+function petStage(id) { return (S && S.petEvo && S.petEvo[id]) || 0; }
+function petSprKey(id, st) { const p = PET_BY[id], e = EVO[id] && st > 0 && EVO[id][st - 1]; return (e && e.spr) || (p && p.spr); }
+function petName(p, st) { const e = EVO[p.id] && st > 0 && EVO[p.id][st - 1]; return e ? e.n : p.n; }
+function petB(k) { const p = S && S.pet && PET_BY[S.pet]; return p && p.b[k] ? p.b[k] / 100 * PET_MULT[petStage(S.pet)] : 0; }
+function petBonusText(p, st) { const k = Object.keys(p.b)[0]; return tr('pt_' + k, Math.round(p.b[k] * PET_MULT[st || 0] * 10) / 10); }
+function evoCost(p, st) { return st === 0 ? { coins: Math.max(5000, Math.round(p.cost * 0.8)), items: { essence: 8, relic: 2 } } : { coins: Math.max(25000, p.cost * 2), items: { core: 3, relic: 6 } }; }
+function drawPet(x, id, px, py, t, flip, st) {
+  const p = PET_BY[id]; st = st || 0; const key = p && petSprKey(id, st); if (!p || !SPR[key]) return;
+  const c = SPR[key].c, k = [0.6, 0.78, 0.95][st] || 0.6, w = Math.round(c.width * k), h = Math.round(c.height * k), by = Math.round(Math.abs(Math.sin(t * 5)) * 1.5);
+  ell(x, px, py, 3 + st, 1, SH);
+  if (st >= 2) { ell(x, px, py - h / 2 - by, w * 0.75, h * 0.62, 'rgba(255,220,120,.16)'); x.fillStyle = '#fff6c0'; x.fillRect(Math.round(px + Math.sin(t * 3) * w * 0.6), Math.round(py - h - 2 + Math.cos(t * 2.3) * 3), 1, 1); x.fillRect(Math.round(px + Math.cos(t * 2.1) * w * 0.55), Math.round(py - h * 0.5 + Math.sin(t * 2.7) * 3), 1, 1); }
+  else if (st === 1) { x.fillStyle = 'rgba(255,240,180,.7)'; x.fillRect(Math.round(px + Math.sin(t * 3) * w * 0.55), Math.round(py - h - 1 + Math.cos(t * 2.3) * 2), 1, 1); }
+  x.save(); if (flip) { x.translate(Math.round(px), 0); x.scale(-1, 1); x.drawImage(c, -Math.round(w / 2), Math.round(py - h - by), w, h); } else x.drawImage(c, Math.round(px - w / 2), Math.round(py - h - by), w, h); x.restore();
+}
+function P_pets() {
+  let o = `<div class="card"><div class="rowb"><b>🐾 ${tr('pt_title')}</b><b>${ico(['coin', '#e8c45a'], 'xs')} ${fmt(S.coins)}</b></div><div class="small muted">${tr('pt_hint')}</div><div class="small muted">${tr('pt_evo_hint')}</div></div>`;
+  return o + PETS.map(p => {
+    const own = S.pets.includes(p.id), act = S.pet === p.id, st = petStage(p.id); let evo = '';
+    if (own && st < 2) { const c = evoCost(p, st); const ok = S.coins >= c.coins && Object.keys(c.items).every(i => have(i) >= c.items[i]); evo = `<div class="small muted">${tr('pt_evo_need')}: ${ico(['coin', '#e8c45a'], 'xs')} ${fmt(c.coins)} ${Object.keys(c.items).map(i => `${itemIco(i, 'xs')}${have(i)}/${c.items[i]}`).join(' ')}</div>${stBtn('petevo', p.id, '✨ ' + tr('pt_evolve'), 'sm', !ok)}`; }
+    else if (own) evo = `<div class="small gold">${tr('pt_max')}</div>`;
+    return `<div class="mrow ${act ? 'active' : ''}"><img class="msp" src="${sprUrl(petSprKey(p.id, st))}"><div class="grow"><b>${nm(petName(p, st))}</b>${own ? ` <span class="chip">${tr('pt_stage', st + 1)}</span>` : ''}<div class="small ok">${petBonusText(p, st)}</div>${evo}</div>${own ? (act ? stBtn('pet', '', tr('pt_leave'), 'sm') : stBtn('pet', p.id, tr('pt_take'), 'go')) : `<div class="rcol"><small class="gold">${fmt(p.cost)}</small>${stBtn('petbuy', p.id, tr('buy'), 'go', S.coins < p.cost)}</div>`}</div>`;
+  }).join('');
+}
+Object.assign(ACT, {
+  petevo(v) {
+    const p = PET_BY[v]; if (!p || !S.pets.includes(v)) return; const st = petStage(v); if (st >= 2) return; const c = evoCost(p, st);
+    if (S.coins < c.coins || !Object.keys(c.items).every(i => have(i) >= c.items[i])) { toast(tr('pt_evo_fail'), 'bad'); return; }
+    S.coins -= c.coins; take(c.items, 1); (S.petEvo || (S.petEvo = {}))[v] = st + 1; sfx('quest'); toast(tr('pt_evolved'), 'gold'); RT.hdirty = true; RT.dirtyUI = true;
+  }
+});
+PANELS.hero.pets = P_pets;
 
 'use strict';
 /* ===== MENU: accounts (local, no email), pixel title banner, animated title scene ===== */
