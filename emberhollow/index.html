@@ -196,6 +196,10 @@ body[data-theme=navy] button.go,body[data-theme=navy] .pill.on{background:#2a6ad
 body[data-theme=parch] .chip,body[data-theme=parch] .chips .chip,body[data-theme=parch] .tag{background:#e0c890!important;color:#25180c!important;border:1px solid #8a6a3a!important}
 body[data-theme=parch] .chip.gold{background:#7a3a10!important;color:#fff4d8!important}
 body[data-theme=parch] input,body[data-theme=parch] select,body[data-theme=parch] textarea{background:#fff8e4!important;color:#25180c!important;border:2px solid #8a6a3a!important}
+#dpad{position:absolute;left:10px;bottom:132px;display:none;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px);gap:3px;z-index:6;touch-action:none;user-select:none;-webkit-user-select:none}
+#dpad button{background:rgba(20,12,6,.6);color:#fff;border:2px solid rgba(255,255,255,.85);border-radius:10px;font-size:20px;padding:0;touch-action:none}
+#dpad button:active{background:rgba(255,210,58,.85);color:#000}
+#dpad [data-k=u]{grid-column:2;grid-row:1}#dpad [data-k=l]{grid-column:1;grid-row:2}#dpad [data-k=r]{grid-column:3;grid-row:2}#dpad [data-k=d]{grid-column:2;grid-row:3}
 
 </style>
 </head>
@@ -1505,7 +1509,7 @@ function openNpc(id) {
   else { UI.panel = 'adventure'; UI.tab.adventure = 'quests'; UI.npc = id === 'alda' ? 'alda' : id; }
 }
 function heroStep(dt) {
-  const h = RT.hero; if (h.tx == null) { h.moving = false; return; }
+  const h = RT.hero; if (ctlMove(dt)) return; if (h.tx == null) { h.moving = false; return; }
   const dx = h.tx - h.x, dy = h.ty - h.y, d = Math.hypot(dx, dy);
   if (d < 1.3) { h.x = h.tx; h.y = h.ty; h.tx = null; h.moving = false; const c = RT.cmd; RT.cmd = null; onArriveCmd(c); return; }
   const k = Math.min(1, 46 * dt / d); h.x += dx * k; h.y += dy * k; h.moving = true; const pw = h.wt; h.wt += dt; if (Math.abs(dx) > 0.4) h.face = dx > 0 ? 1 : -1;
@@ -2138,6 +2142,7 @@ function P_market() {
 function P_settings() {
   const row = (k, label) => `<label class="srow2"><input type="checkbox" data-a="set" data-v="${k}" ${S.set[k] ? 'checked' : ''}><span>${label}</span></label>`;
   return `<div class="card">${row('sound', tr('sound'))}${row('music', tr('music'))}${row('camp', tr('camp'))}${row('reveals', tr('reveals'))}${row('numbers', tr('numbers'))}</div>
+  <div class="sect">${tr('ctl_title')}</div><div class="subpills">${['off', 'pad', 'swipe'].map(c => `<button class="pill ${(S.set.ctl || 'off') === c ? 'on' : ''}" data-a="ctl" data-v="${c}">${tr('ctl_' + c)}</button>`).join('')}</div><div class="small muted pad">${tr('ctl_hint')}</div>
   <div class="sect">${tr('theme')}</div><div class="subpills">${THEMES.map(t => `<button class="pill ${(document.body.dataset.theme || 'parch') === t ? 'on' : ''}" data-a="theme" data-v="${t}">${tr('th_' + t)}</button>`).join('')}</div>
   <div class="sect">${tr('language')}</div><div class="subpills">${LANGS.map(l => `<button class="pill ${S.lang === l ? 'on' : ''}" data-a="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
   <div class="small muted pad">${tr('lang_note')}</div>
@@ -3091,6 +3096,37 @@ function applyTheme() { let t = 'parch'; try { t = localStorage.getItem('eh_them
 applyTheme();
 D('theme', 'Theme', 'Tema', 'Тема'); D('th_parch', 'Parchment', 'Pergamentas', 'Пергамент'); D('th_pixel', 'Pixel retro', 'Pikselinis retro', 'Пиксель-ретро'); D('th_navy', 'Navy fantasy', 'Mėlynas fantasy', 'Синее фэнтези'); D('th_default', 'Classic dark', 'Klasikinis tamsus', 'Тёмная классика');
 Object.assign(ACT, { theme(v) { try { localStorage.setItem('eh_theme', v); } catch (e) { } applyTheme(); RT.dirtyUI = true; } });
+
+/* ---------- manual movement: arrow pad / swipe ---------- */
+D('ctl_title', 'Movement controls', 'Judėjimo valdymas', 'Управление движением'); D('ctl_off', 'Tap only', 'Tik paliesti', 'Только тап'); D('ctl_pad', 'Arrow pad', 'Rodyklės', 'Стрелки'); D('ctl_swipe', 'Swipe', 'Braukimas', 'Свайп');
+D('ctl_hint', 'Arrows: hold the buttons. Swipe: drag a finger on the world. Moving manually stops quests and auto-run.', 'Rodyklės: laikyk mygtukus. Braukimas: tempk pirštu per žaidimo pasaulį. Valdant ranka kvestai ir auto-vykdymas sustoja.', 'Стрелки: удерживай кнопки. Свайп: води пальцем по миру. Ручное управление останавливает квесты и авто-ход.');
+D('auto_manual', 'Auto-run stopped: manual control', 'Auto-vykdymas sustabdytas: valdai ranka', 'Авто-ход остановлен: ручное управление');
+const CTL = { pad: { u: 0, d: 0, l: 0, r: 0 }, sw: null };
+function ctlMode() { return (S && S.set && S.set.ctl) || 'off'; }
+function ctlVec() { const m = ctlMode(); if (m === 'pad') return { x: CTL.pad.r - CTL.pad.l, y: CTL.pad.d - CTL.pad.u }; if (m === 'swipe' && CTL.sw) return { x: CTL.sw.vx, y: CTL.sw.vy }; return { x: 0, y: 0 }; }
+function ctlMove(dt) {
+  if (!S || RT.view === 'map' || RT.travel) return false; const v = ctlVec(), len = Math.hypot(v.x, v.y); if (len < 0.05) return false;
+  const h = RT.hero, sc = getScene(); if (RT.auto) autoStop(tr('auto_manual'), false); if (S.act) stopAct(); RT.pending = null; RT.cmd = null; h.tx = null;
+  const k = len > 1 ? 1 / len : 1, sp = 54 * dt * Math.min(1, len);
+  let x = clamp(h.x + v.x * k * sp / (len > 1 ? 1 : Math.max(len, 0.01)), 8, sc.W - 8), y = clamp(h.y + v.y * k * sp / (len > 1 ? 1 : Math.max(len, 0.01)), sc.H * 0.16, sc.H - 6);
+  sc.ponds.forEach(p => { const cx = p.x * sc.W, cy = p.y * sc.H, rx = p.rx * sc.W + 3, ry = p.ry * sc.H + 3; const a = (x - cx) / rx, b = (y - cy) / ry; if (a * a + b * b < 1) { const d = Math.hypot(a, b) || 1; x = cx + a / d * rx * 1.04; y = cy + b / d * ry * 1.04; } });
+  h.x = x; h.y = y; h.moving = true; h.wt += dt; if (Math.abs(v.x) > 0.15) h.face = v.x > 0 ? 1 : -1; return true;
+}
+Object.assign(ACT, { ctl(v) { S.set.ctl = v; CTL.pad = { u: 0, d: 0, l: 0, r: 0 }; CTL.sw = null; RT.dirtyUI = true; } });
+(function () {
+  const init = () => {
+    const ar = document.getElementById('arena'); if (!ar) return; const pad = document.createElement('div'); pad.id = 'dpad';
+    pad.innerHTML = [['u', '▲'], ['l', '◀'], ['r', '▶'], ['d', '▼']].map(a => `<button data-k="${a[0]}">${a[1]}</button>`).join(''); ar.appendChild(pad);
+    pad.querySelectorAll('button').forEach(b => { const k = b.dataset.k; b.addEventListener('pointerdown', e => { e.preventDefault(); CTL.pad[k] = 1; try { b.setPointerCapture(e.pointerId); } catch (x) { } }); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => b.addEventListener(ev, () => { CTL.pad[k] = 0; })); b.addEventListener('contextmenu', e => e.preventDefault()); });
+    setInterval(() => { pad.style.display = (S && ctlMode() === 'pad' && RT.view !== 'map' && !RT.travel) ? 'grid' : 'none'; }, 250);
+    let st = null;
+    document.addEventListener('pointerdown', e => { if (!S || ctlMode() !== 'swipe' || RT.view === 'map' || !(e.target === WV.cv || e.target === WV.lab)) return; st = { x: e.clientX, y: e.clientY, moved: 0 }; });
+    document.addEventListener('pointermove', e => { if (!st) return; const dx = e.clientX - st.x, dy = e.clientY - st.y; if (!st.moved && Math.hypot(dx, dy) < 9) return; st.moved = 1; CTL.sw = { vx: clamp(dx / 30, -1, 1), vy: clamp(dy / 30, -1, 1) }; });
+    const up = () => { if (st && st.moved) { RT._swallow = 1; setTimeout(() => { RT._swallow = 0; }, 80); } st = null; CTL.sw = null; };
+    document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 
 'use strict';
 /* ===== MENU: accounts (local, no email), pixel title banner, animated title scene ===== */
