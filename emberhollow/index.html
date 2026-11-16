@@ -179,6 +179,23 @@ select{background:#17110f;color:#f0e6d0;border:2px solid var(--line2);border-rad
 #track .goal.auto{border-color:var(--gold)}
 .chips .chip.gold{border-color:var(--gold);color:var(--gold)}
 #arena canvas{touch-action:none}
+/* ---- themes ---- */
+body[data-theme=pixel]{--bg:#0b0b14;--bg2:#12122a;--card:#1a1a3a;--card2:#24244e;--line:#ffffff;--line2:#ffd23a;--gold:#ffd23a;--txt:#ffffff;--mut:#a8b0d8;--red:#ff4a5a;--grn:#4aff7a;font-family:"Courier New",ui-monospace,monospace;font-weight:700}
+body[data-theme=pixel] *{border-radius:0!important}
+body[data-theme=pixel] .card,body[data-theme=pixel] button,body[data-theme=pixel] .pill,body[data-theme=pixel] .mrow{border:2px solid #fff!important;box-shadow:3px 3px 0 #000}
+body[data-theme=pixel] .card,body[data-theme=pixel] .mrow{background:#1a1a3a!important}
+body[data-theme=pixel] .pill.on,body[data-theme=pixel] button.go{background:#ffd23a!important;color:#000!important}
+body[data-theme=parch]{--bg:#d8c8a0;--bg2:#e6d8b4;--card:#f4ead0;--card2:#ecdcb4;--line:#8a6a3a;--line2:#5a3a14;--gold:#8a4a08;--txt:#25180c;--mut:#5e4c36;--red:#a82a1a;--grn:#2a7a2a}
+body[data-theme=parch] .card,body[data-theme=parch] .mrow{background:#f4ead0!important;color:#25180c;border:2px solid #8a6a3a!important}
+body[data-theme=parch] button{background:#e0c890!important;color:#25180c!important;border:2px solid #5a3a14!important}
+body[data-theme=parch] button.go,body[data-theme=parch] .pill.on{background:#7a3a10!important;color:#fff4d8!important}
+body[data-theme=parch] #bar,body[data-theme=parch] nav,body[data-theme=parch] .panel,body[data-theme=parch] #panel{background:#e6d8b4!important;color:#25180c}
+body[data-theme=navy]{--bg:#0a1424;--bg2:#0e1c34;--card:#13264a;--card2:#1a3260;--line:#3a5a8a;--line2:#9ac8ff;--gold:#7ad8ff;--txt:#e8f2ff;--mut:#8aa4c8;--red:#ff5a6a;--grn:#5af0a8}
+body[data-theme=navy] .card,body[data-theme=navy] .mrow{background:#13264a!important;border-color:#3a5a8a!important}
+body[data-theme=navy] button.go,body[data-theme=navy] .pill.on{background:#2a6ad0!important;color:#fff!important;border-color:#9ac8ff!important}
+body[data-theme=parch] .chip,body[data-theme=parch] .chips .chip,body[data-theme=parch] .tag{background:#e0c890!important;color:#25180c!important;border:1px solid #8a6a3a!important}
+body[data-theme=parch] .chip.gold{background:#7a3a10!important;color:#fff4d8!important}
+body[data-theme=parch] input,body[data-theme=parch] select,body[data-theme=parch] textarea{background:#fff8e4!important;color:#25180c!important;border:2px solid #8a6a3a!important}
 
 </style>
 </head>
@@ -1182,8 +1199,13 @@ const NPC_LOOK = {
 };
 function npcSprite(id, fr) { const k = 'npc_' + id + (fr || 0); if (SPR[k]) return SPR[k]; const L = NPC_LOOK[id] || NPC_LOOK.alda; const g = L.g === 'r' ? ROBE_G : HERO_G.slice(0, 12).concat(LEGS[0]); return (SPR[k] = mkSprite(g, L.p)); }
 function heroSprite(style) { return heroSpriteF(style, 0); }
+function sprOutline(sp) {
+  if (sp.oc) return sp.oc; const c = document.createElement('canvas'); c.width = sp.w + 2; c.height = sp.h + 2; const g = c.getContext('2d');
+  [[0, 1], [2, 1], [1, 0], [1, 2], [0, 0], [2, 0], [0, 2], [2, 2]].forEach(o => g.drawImage(sp.wc, o[0], o[1]));
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = '#0c0806'; g.fillRect(0, 0, c.width, c.height); return (sp.oc = c);
+}
 function drawSpr(x, sp, px, py, sc, flip, white) {
-  x.save(); x.translate(Math.round(px), Math.round(py)); if (flip) x.scale(-1, 1); x.scale(sc, sc); x.drawImage(sp.c, -Math.floor(sp.w / 2), -sp.h); if (white) { x.globalAlpha = white; x.drawImage(sp.wc, -Math.floor(sp.w / 2), -sp.h); } x.restore();
+  x.save(); x.translate(Math.round(px), Math.round(py)); if (flip) x.scale(-1, 1); x.scale(sc, sc); if (sp.wc) x.drawImage(sprOutline(sp), -Math.floor(sp.w / 2) - 1, -sp.h - 1); x.drawImage(sp.c, -Math.floor(sp.w / 2), -sp.h); if (white) { x.globalAlpha = white; x.drawImage(sp.wc, -Math.floor(sp.w / 2), -sp.h); } x.restore();
 }
 /* ---- audio ---- */
 let AC = null, musicTimer = null, campNode = null;
@@ -1616,9 +1638,10 @@ function drawScene(dt) {
       if (F.boss && !e.dead) lbl(p.x, p.y - SPR[spd.spr].h * 2 - 10, nm(spd.n), '#e8a0ff', 11);
     });
   }
-  if (RT.view !== 'map') for (const o of NET.others.values()) { if (o.x === undefined) continue; list.push({ y: o.y, f: () => { const fr = o.mv ? 1 + (Math.floor(o.wt * 8) % 2) : 0; const sp = heroSpriteF(o.s || 'melee', fr); ell(x, o.x, o.y, 5, 1, SH); drawSpr(x, sp, o.x, o.y + (o.mv ? -Math.abs(Math.sin(o.wt * 16)) * 1 : Math.sin(T * 3 + o.wt) * 0.6), 1, o.face < 0, 0); if (o.p) drawPet(x, o.p, o.x - (o.face < 0 ? -9 : 9), o.y + 1, T + o.wt, o.face < 0); } }); lbl(o.x, o.y - 20, (o.g ? '[' + o.g + '] ' : '') + o.n + ' · ' + o.lv, '#8affb0', 9); if (titleText(o.t)) lbl(o.x, o.y - 27, titleText(o.t), '#e8c45a', 8); }
+  if (RT.view !== 'map') for (const o of NET.others.values()) { if (o.x === undefined) continue; list.push({ y: o.y, f: () => { const fr = o.mv ? 1 + (Math.floor(o.wt * 8) % 2) : 0; const sp = heroSpriteF(o.s || 'melee', fr); footRing(x, o.x, o.y, 0, T); ell(x, o.x, o.y, 5, 1, SH); drawSpr(x, sp, o.x, o.y + (o.mv ? -Math.abs(Math.sin(o.wt * 16)) * 1 : Math.sin(T * 3 + o.wt) * 0.6), 1, o.face < 0, 0); if (o.p) drawPet(x, o.p, o.x - (o.face < 0 ? -9 : 9), o.y + 1, T + o.wt, o.face < 0); } }); lbl(o.x, o.y - 20, (o.g ? '[' + o.g + '] ' : '') + o.n + ' · ' + o.lv, '#8affb0', 9); if (titleText(o.t)) lbl(o.x, o.y - 27, titleText(o.t), '#e8c45a', 8); }
   // hero
   list.push({ y: h.y, f: () => {
+    footRing(x, h.x, h.y, 1, T);
     if (S.pet) drawPet(x, S.pet, h.x - h.face * 10, h.y + 1, T, h.face < 0, petStage(S.pet));
     const fr = h.moving ? 1 + (Math.floor(h.wt * 8) % 2) : 0; const sp = heroSpriteF(hq.style, fr); let ox = 0, oy = h.moving ? -Math.abs(Math.sin(h.wt * 16)) * 1.2 : Math.sin(T * 3) * 0.7; const dir = h.face;
     const sw = (F && F.swing > 0 && act && act.type === 'fight');
@@ -1652,6 +1675,10 @@ function drawScene(dt) {
   if (RT.fade > 0) { x.fillStyle = 'rgba(0,0,0,' + Math.min(1, RT.fade) + ')'; x.fillRect(0, 0, W, Hh); }
   x.restore();
 }
+function footRing(x, px, py, own, T) {
+  x.save(); x.lineWidth = 1; x.beginPath(); x.ellipse(Math.round(px), Math.round(py), 8, 3, 0, 0, 6.29); x.strokeStyle = 'rgba(0,0,0,.75)'; x.setLineDash([]); x.lineWidth = 2.5; x.stroke();
+  x.lineWidth = 1.2; if (own) { x.strokeStyle = '#ffe14a'; x.setLineDash([]); } else { x.strokeStyle = '#4ae8ff'; x.setLineDash([2, 2]); x.lineDashOffset = -T * 4; } x.stroke(); x.restore();
+}
 function drawLabels() {
   const lx = WV.lx; if (!lx) return; const d = WV.dpr, px = WV.px, cx0 = RT.cam ? RT.cam.x : 0, cy0 = RT.cam ? RT.cam.y : 0; lx.setTransform(d, 0, 0, d, 0, 0); lx.clearRect(0, 0, WV.cw, WV.ch); lx.textAlign = 'center'; lx.textBaseline = 'alphabetic'; lx.lineJoin = 'round';
   for (const l of LB) {
@@ -1660,6 +1687,7 @@ function drawLabels() {
     if (l.fx) { lx.globalAlpha = l.a; lx.font = `bold ${l.size + 2}px "Segoe UI",Arial,sans-serif`; lx.lineWidth = 4; lx.strokeStyle = '#000'; lx.strokeText(l.txt, (l.x - cx0) * px, (l.y - cy0) * px); lx.fillStyle = l.col; lx.fillText(l.txt, (l.x - cx0) * px, (l.y - cy0) * px); lx.globalAlpha = 1; continue; }
     lx.font = `${l.o && l.o.bold ? 'bold ' : '600 '}${l.size}px "Segoe UI",Arial,sans-serif`; let tx = (l.x - cx0) * px; const ty = (l.y - cy0) * px; let off = 0;
     if (l.o && l.o.img && l.o.img.complete) { off = 7; const w = lx.measureText(l.txt).width; lx.drawImage(l.o.img, tx - w / 2 - 15, ty - 11, 14, 14); }
+    { const tw = lx.measureText(l.txt).width + 8; lx.fillStyle = 'rgba(12,8,6,.62)'; lx.fillRect(tx + off - tw / 2, ty - l.size, tw, l.size + 4); }
     lx.lineWidth = 3; lx.strokeStyle = 'rgba(0,0,0,.85)'; lx.strokeText(l.txt, tx + off, ty); lx.fillStyle = l.col; lx.fillText(l.txt, tx + off, ty);
   }
 }
@@ -2110,6 +2138,7 @@ function P_market() {
 function P_settings() {
   const row = (k, label) => `<label class="srow2"><input type="checkbox" data-a="set" data-v="${k}" ${S.set[k] ? 'checked' : ''}><span>${label}</span></label>`;
   return `<div class="card">${row('sound', tr('sound'))}${row('music', tr('music'))}${row('camp', tr('camp'))}${row('reveals', tr('reveals'))}${row('numbers', tr('numbers'))}</div>
+  <div class="sect">${tr('theme')}</div><div class="subpills">${THEMES.map(t => `<button class="pill ${(document.body.dataset.theme || 'parch') === t ? 'on' : ''}" data-a="theme" data-v="${t}">${tr('th_' + t)}</button>`).join('')}</div>
   <div class="sect">${tr('language')}</div><div class="subpills">${LANGS.map(l => `<button class="pill ${S.lang === l ? 'on' : ''}" data-a="lang" data-v="${l}">${LANG_NAMES[l]}</button>`).join('')}</div>
   <div class="small muted pad">${tr('lang_note')}</div>
   <div class="sect">${tr('save_data')}</div><div class="card"><div class="small muted">${tr('autosave')}</div><div class="rowb">${stBtn('export', '', tr('export'), 'sm')}${stBtn('import', '', tr('import'), 'sm')}${stBtn('reset', '', tr('reset'), 'sm danger')}</div><textarea id="savebox" class="${UI.saveOpen ? '' : 'hidden'}" rows="4" placeholder="${tr('paste_save')}">${esc(UI.saveBox || '')}</textarea></div>
@@ -3052,6 +3081,16 @@ Object.assign(ACT, {
   }
 });
 PANELS.hero.pets = P_pets;
+
+/* calmer, darker ground so characters stand out */
+function muteHex(h, k, sat) { const n = parseInt(h.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; const l = (r + g + b) / 3; r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat; const f = v => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + f(r) + f(g) + f(b); }
+['town', 'meadow', 'woods', 'lake', 'sand'].forEach(k => { const P = GPAL[k]; ['a', 'b', 'c', 'tuft'].forEach(f => P[f] = muteHex(P[f], 0.74, 0.55)); });
+/* themes */
+const THEMES = ['parch', 'pixel', 'navy', 'default'];
+function applyTheme() { let t = 'parch'; try { t = localStorage.getItem('eh_theme') || 'parch'; } catch (e) { } document.body.dataset.theme = t; }
+applyTheme();
+D('theme', 'Theme', 'Tema', 'Тема'); D('th_parch', 'Parchment', 'Pergamentas', 'Пергамент'); D('th_pixel', 'Pixel retro', 'Pikselinis retro', 'Пиксель-ретро'); D('th_navy', 'Navy fantasy', 'Mėlynas fantasy', 'Синее фэнтези'); D('th_default', 'Classic dark', 'Klasikinis tamsus', 'Тёмная классика');
+Object.assign(ACT, { theme(v) { try { localStorage.setItem('eh_theme', v); } catch (e) { } applyTheme(); RT.dirtyUI = true; } });
 
 'use strict';
 /* ===== MENU: accounts (local, no email), pixel title banner, animated title scene ===== */
