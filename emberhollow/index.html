@@ -803,6 +803,7 @@ function xpMult(skill) {
   if (S.faction) { const f = FACTIONS.find(x => x.id === S.faction); if (f && f.sk.includes(skill)) m += 0.10; }
   if (S.guild) m += GUILD_LV[S.guild.lvl - 1].bonus / 100;
   m += petB('xp');
+  const L = S.lv[skill] || 1; if (L < 10) m += 1; else if (L < 20) m += 0.5; /* faster early levels */
   return m;
 }
 function addXp(skill, amt) {
@@ -2222,7 +2223,7 @@ function setTxt(id, v, html) { const el = $(id); if (!el) return; const k = id; 
 function updateHud(force) {
   if (!S || UI.creating || UI.inTitle) return; if (force) hudCache = {}; const h = H(); const F = RT.f; const hp = F ? F.hp : h.maxHp;
   setTxt('#hpt', Math.ceil(hp) + '/' + h.maxHp); $('#hpf').style.width = clamp(hp / h.maxHp, 0, 1) * 100 + '%';
-  setTxt('#hname2', esc(S.name) + (S.guild ? ` [${esc(S.guild.tag)}]` : ''), 1); setTxt('#hlv', tr('lv') + ' ' + h.lvl, 0); setTxt('#hstyle', tr('style_' + h.style) + ' · ' + tr('cb') + ' ' + combatLv(), 0);
+  setTxt('#hname2', esc(S.name) + (S.guild ? ` [${esc(S.guild.tag)}]` : ''), 1); setTxt('#hlv', tr('lv') + ' ' + h.lvl, 0); setTxt('#hstyle', tr('style_' + h.style) + ' · ' + tr('cb') + ' ' + combatLv() + (() => { const k = { melee: 'melee', ranged: 'archery', magic: 'sorcery' }[h.style] || 'melee', l = S.lv[k]; return l >= 99 ? '' : ' · XP ' + Math.floor(S.xp[k]) + '/' + XPT[l + 1]; })(), 0);
   setTxt('#hport', `<img class="pix" src="${heroUrl()}">`, 1);
   let loc = nm(LOCS[S.loc].n), loc2 = '';
   if (RT.travel) loc2 = tr('traveling', nm(LOCS[RT.travel.to].n)); else if (!S.act) loc2 = tr('idle'); else if (S.act.type === 'fight') loc2 = tr('in_arena') + ' · ' + nm(MONS[S.act.id].n); else { const n = NODE_BY_ID[S.act.id]; loc2 = tr('gathering', nm(n.n)); }
